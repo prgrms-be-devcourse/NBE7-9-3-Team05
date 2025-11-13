@@ -1,68 +1,84 @@
-package com.back.motionit.global.logging;
+package com.back.motionit.global.logging
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
+import io.github.oshai.kotlinlogging.KotlinLogging
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Timer
+import org.aspectj.lang.ProceedingJoinPoint
+import org.aspectj.lang.annotation.Around
+import org.aspectj.lang.annotation.Aspect
+import org.aspectj.lang.reflect.MethodSignature
+import org.springframework.stereotype.Component
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 
-import org.aspectj.lang.ProceedingJoinPoint;
-import org.aspectj.lang.annotation.Around;
-import org.aspectj.lang.annotation.Aspect;
-import org.aspectj.lang.reflect.MethodSignature;
-import org.springframework.stereotype.Component;
-
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
-@Slf4j
 @Aspect
 @Component
-@RequiredArgsConstructor
-public class PerformanceMonitoringAspect {
+class PerformanceMonitoringAspect(
+    private val meterRegistry: MeterRegistry
+) {
 
-	private final MeterRegistry meterRegistry;
-	private final Map<String, Timer> timerCache = new ConcurrentHashMap<>();
+    // Timer 캐싱 (고정 metric key -> Timer 인스턴스 재사용)
+    private val timerCache = ConcurrentHashMap<String, Timer>()
+    private val log = KotlinLogging.logger {}
 
-	@Around("execution(* com.back.motionit.domain.challenge..controller..*(..)) || "
-		+ "execution(* com.back.motionit.domain.challenge..service..*(..)) || "
-		+ "execution(* com.back.motionit.domain.challenge..repository..*(..))")
-	public Object measureExecutionTime(ProceedingJoinPoint joinPoint) throws Throwable {
-		long start = System.nanoTime();
-		Object result = joinPoint.proceed();
-		long durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+    @Around(
+        """
+        execution(* com.back.motionit.domain.challenge..controller..*(..)) ||
+        execution(* com.back.motionit.domain.challenge..service..*(..)) ||
+        execution(* com.back.motionit.domain.challenge..repository..*(..))
+        """
+    )
+    fun measureExecutionTime(joinPoint: ProceedingJoinPoint): Any? {
+        val start = System.nanoTime()
+        var success = true
 
-		MethodSignature signature = (MethodSignature)joinPoint.getSignature();
-		String className = signature.getDeclaringType().getSimpleName();
-		String methodName = signature.getName();
-		String layer = getLayer(className);
+        try {
+            return joinPoint.proceed()
+        } catch (ex: Exception) {
+            success = false // 실패 여부 기록
+            throw ex
+        } finally {
+            val durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start)
 
-		String key = layer + ":" + className + ":" + methodName;
-		Timer timer = timerCache.computeIfAbsent(key, k ->
-			Timer.builder("method.execution.time")
-				.description("Method execution time (ms)")
-				.tags("layer", layer, "class", className, "method", methodName)
-				.publishPercentiles(0.5, 0.95, 0.99)
-				.register(meterRegistry)
-		);
-		timer.record(durationMs, TimeUnit.MILLISECONDS);
+            val signature = joinPoint.signature as MethodSignature
+            val className = signature.declaringType.simpleName
+            val methodName = signature.name
+            val layer = classifyLayer(className)
 
-		log.info("PERF layer={} class={} method={} durationMs={}", layer, className, methodName, durationMs);
-		return result;
-	}
+            // Timer key (캐싱)
+            val cacheKey = "$layer.$className.$methodName"
 
-	private String getLayer(String className) {
-		String name = className.toLowerCase();
-		if (name.contains("controller")) {
-			return "controller";
-		}
-		if (name.contains("service")) {
-			return "service";
-		}
-		if (name.contains("repository")) {
-			return "repository";
-		} else {
-			return "other";
-		}
-	}
+            val timer = timerCache.computeIfAbsent(cacheKey) {
+                Timer.builder(METRIC_NAME)
+                    .description("Method execution time (ms)")
+                    .tags(
+                        "layer", layer,
+                        "class", className,
+                        "method", methodName,
+                    )
+                    .publishPercentiles(0.5, 0.95, 0.99)
+                    .register(meterRegistry)
+            }
+
+            // 측정값 기록
+            timer.record(durationMs, TimeUnit.MILLISECONDS)
+
+            // 지연(lazy) 로깅, debug 레벨이 켜져있을 때만 작동
+            log.debug {
+                "[Perf] $layer -> $className.$methodName executed in ${durationMs}ms (success=$success)"
+            }
+        }
+    }
+
+    private fun classifyLayer(className: String): String =
+        when {
+            "controller" in className.lowercase() -> "controller"
+            "service" in className.lowercase() -> "service"
+            "repository" in className.lowercase() -> "repository"
+            else -> "other"
+        }
+
+    companion object {
+        private const val METRIC_NAME = "method.execution.time"
+    }
 }
