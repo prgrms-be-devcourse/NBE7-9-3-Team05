@@ -14,7 +14,7 @@ import com.back.motionit.global.error.code.ChallengeVideoErrorCode;
 import com.back.motionit.global.error.exception.BusinessException;
 
 @Component
-@Profile("!perf")
+@Profile("!perf & !test")
 public class YoutubeMetadataClient {
 
 	// YouTube Data API v3 공식 엔드포인트
