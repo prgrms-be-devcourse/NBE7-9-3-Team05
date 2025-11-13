@@ -1,17 +1,20 @@
-package com.back.motionit.domain.challenge.participant.dto;
+package com.back.motionit.domain.challenge.participant.dto
 
-import com.back.motionit.domain.challenge.participant.entity.ChallengeParticipant;
+import com.back.motionit.domain.challenge.participant.entity.ChallengeParticipant
 
-public record ChallengeParticipantResponse(
-	Long userId,
-	Long roomId,
-	boolean joined
+@JvmRecord
+data class ChallengeParticipantResponse(
+    val userId: Long,
+    val roomId: Long,
+    val joined: Boolean
 ) {
-	public static ChallengeParticipantResponse from(ChallengeParticipant participant) {
-		return new ChallengeParticipantResponse(
-			participant.getUser().getId(),
-			participant.getChallengeRoom().getId(),
-			!participant.getQuited()
-		);
-	}
+    companion object {
+        fun from(participant: ChallengeParticipant): ChallengeParticipantResponse {
+            return ChallengeParticipantResponse(
+                participant.user.id!!,
+                participant.challengeRoom.id!!,
+                !participant.quited
+            )
+        }
+    }
 }

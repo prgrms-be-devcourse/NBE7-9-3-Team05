@@ -1,13 +1,10 @@
-package com.back.motionit.domain.challenge.participant.entity;
+package com.back.motionit.domain.challenge.participant.entity
 
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
+enum class ChallengeParticipantRole(
+    private val value: String
+) {
+    HOST("host"),
+    NORMAL("normal");
 
-@Getter
-@RequiredArgsConstructor
-public enum ChallengeParticipantRole {
-	HOST("host"),
-	NORMAL("normal");
-
-	private final String value;
+    fun getValue(): String = value
 }
