@@ -35,6 +35,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
 
     implementation("org.jetbrains.kotlin:kotlin-reflect")
+    implementation("io.github.oshai:kotlin-logging-jvm:7.0.3")
     implementation("io.github.openfeign.querydsl:querydsl-core:7.1")
 
     implementation("org.springframework.boot:spring-boot-starter-batch")
