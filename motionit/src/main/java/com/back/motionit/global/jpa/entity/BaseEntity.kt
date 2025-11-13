@@ -1,38 +1,27 @@
-package com.back.motionit.global.jpa.entity;
+package com.back.motionit.global.jpa.entity
 
-import java.time.LocalDateTime;
-
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
-import jakarta.persistence.EntityListeners;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
-import jakarta.persistence.MappedSuperclass;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import jakarta.persistence.*
+import org.springframework.data.annotation.CreatedDate
+import org.springframework.data.annotation.LastModifiedDate
+import org.springframework.data.jpa.domain.support.AuditingEntityListener
+import java.time.LocalDateTime
 
 @MappedSuperclass
-@Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
-@EntityListeners(AuditingEntityListener.class)
-public abstract class BaseEntity {
+@EntityListeners(AuditingEntityListener::class)
+open class BaseEntity protected constructor(
+    @JvmField
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    val id: Long
+) {
+    @CreatedDate
+    @Column(name = "create_date", updatable = false)
+    var createDate: LocalDateTime? = null
 
-	@Id
-	@GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
-	@Setter(AccessLevel.PROTECTED)
-	private Long id;
+    @LastModifiedDate
+    @Column(name = "modify_date")
+    var modifyDate: LocalDateTime? = null
 
-	@CreatedDate
-	private LocalDateTime createDate;
-
-	@LastModifiedDate
-	private LocalDateTime modifyDate;
-
-	protected BaseEntity(Long id) {
-		this.id = id;
-	}
+    // === Java 호환 Getter ===
+    fun getId(): Long? = id
 }

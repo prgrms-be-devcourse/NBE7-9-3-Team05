@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 import com.back.motionit.domain.challenge.video.external.youtube.dto.YoutubeVideoMetadata;
 
 @Component
-@Profile("perf") // perf 프로필에서만 활성화됨
+@Profile({"perf", "test"}) // perf 프로필에서만 활성화됨
 public class YoutubeMetadataClientStub extends YoutubeMetadataClient {
 
 	@Override
