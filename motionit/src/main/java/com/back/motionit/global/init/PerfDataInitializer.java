@@ -97,32 +97,34 @@ public class PerfDataInitializer {
 
 			// 4️⃣ 각 방에 host 참가자 추가
 			Map<Long, List<ChallengeParticipant>> roomParticipantsMap = new HashMap<>();
-			for (ChallengeRoom r : rooms) {
+			for (ChallengeRoom room : rooms) {
 				ChallengeParticipant hostParticipant = challengeParticipantRepository.save(
-					ChallengeParticipant.builder()
-						.user(host)
-						.challengeRoom(r)
-						.role(ChallengeParticipantRole.HOST)
-						.quited(false)
-						.challengeStatus(false)
-						.build()
+					ChallengeParticipant.create(
+						host,
+						room,
+						ChallengeParticipantRole.HOST,
+						false,
+						false,
+						null
+					)
 				);
-				roomParticipantsMap.put(r.getId(), new ArrayList<>(List.of(hostParticipant)));
+				roomParticipantsMap.put(room.getId(), new ArrayList<>(List.of(hostParticipant)));
 			}
 
 			// 5️⃣ 유저 → 방 매핑 (고정 규칙: (userId-1)%15)
 			List<ChallengeParticipant> participants = new ArrayList<>();
-			for (User u : users) {
-				int roomIndex = ((u.getId().intValue() - 1) % rooms.size());
+			for (User user : users) {
+				int roomIndex = ((user.getId().intValue() - 1) % rooms.size());
 				ChallengeRoom assigned = rooms.get(roomIndex);
 
-				ChallengeParticipant p = ChallengeParticipant.builder()
-					.user(u)
-					.challengeRoom(assigned)
-					.role(ChallengeParticipantRole.NORMAL)
-					.quited(false)
-					.challengeStatus(false)
-					.build();
+				ChallengeParticipant p = ChallengeParticipant.create(
+					user,
+					assigned,
+					ChallengeParticipantRole.NORMAL,
+					false,
+					false,
+					null
+				);
 
 				participants.add(p);
 				roomParticipantsMap.computeIfAbsent(assigned.getId(), k -> new ArrayList<>()).add(p);

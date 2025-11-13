@@ -1,60 +1,70 @@
-package com.back.motionit.domain.challenge.participant.entity;
+package com.back.motionit.domain.challenge.participant.entity
 
-import java.time.LocalDateTime;
-
-import com.back.motionit.domain.challenge.room.entity.ChallengeRoom;
-import com.back.motionit.domain.user.entity.User;
-import com.back.motionit.global.jpa.entity.BaseEntity;
-
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import com.back.motionit.domain.challenge.room.entity.ChallengeRoom
+import com.back.motionit.domain.user.entity.User
+import com.back.motionit.global.jpa.entity.BaseEntity
+import jakarta.persistence.*
+import java.time.LocalDateTime
 
 @Entity
-@NoArgsConstructor
-@AllArgsConstructor
-@Getter
-@Builder
 @Table(name = "challenge_participants")
-public class ChallengeParticipant extends BaseEntity {
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "user_id", nullable = false)
-	private User user;  // 챌린지 참가자
+class ChallengeParticipant(// 챌린지 참가자
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    var user: User,
 
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "challenge_room_id", nullable = false)
-	private ChallengeRoom challengeRoom;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "challenge_room_id", nullable = false)
+    var challengeRoom: ChallengeRoom,
 
-	@Column(name = "quit_date")
-	private LocalDateTime quitDate; // 참가자가 운동방을 탈퇴한 날짜
-	@Column(name = "quited", nullable = false)
-	private Boolean quited; // 참가자의 운동방 탈퇴여부
+    // 챌린지 참가자의 역할 (NORMAL, ADMIN)
+    @Column(nullable = false)
+    var role: ChallengeParticipantRole,
 
-	@Column(nullable = false)
-	private ChallengeParticipantRole role; // 챌린지 참가자의 역할 (예: NORMAL, ADMIN)
+    @Column(nullable = false, name = "challenge_status")
+    var challengeStatus: Boolean = false,
 
-	@Column(nullable = false, name = "challenge_status")
-	private Boolean challengeStatus = false; // 챌린지 참가자의 챌린지 상태 (예: 진행 중, 완료 등)
+    @Column(name = "quit_date")
+    var quitDate: LocalDateTime? = null,
 
-	// TODO: 불리안 타입의 challengeStatus은 오늘 완료와 내일 미완료 구분을 못함 추후 별도 엔티티로 관리 필요
+    @Column(name = "quited", nullable = false)
+    var quited: Boolean = false,
 
-	public ChallengeParticipant(User user, ChallengeRoom challengeRoom,
-		ChallengeParticipantRole challengeParticipantRole) {
-		this.user = user;
-		this.challengeRoom = challengeRoom;
-		this.quited = false;
-		this.role = challengeParticipantRole;
-	}
+) : BaseEntity() {
 
-	public void quitChallenge() {
-		this.quited = true;
-		this.quitDate = LocalDateTime.now();
-	}
+    companion object {
+        // Java의 builder() 대체하는 Factory
+        @JvmStatic
+        fun create(
+            user: User,
+            room: ChallengeRoom,
+            role: ChallengeParticipantRole,
+            quited: Boolean = false,
+            challengeStatus: Boolean = false,
+            quitDate: LocalDateTime? = null
+        ): ChallengeParticipant {
+            return ChallengeParticipant(
+                user = user,
+                challengeRoom = room,
+                role = role,
+                quited = quited,
+                challengeStatus = challengeStatus,
+                quitDate = quitDate
+            )
+        }
+    }
+
+    constructor(user: User, room: ChallengeRoom, role: ChallengeParticipantRole): this(
+        user = user,
+        challengeRoom = room,
+        role = role,
+        challengeStatus = false,
+        quitDate = null,
+        quited = false
+    )
+
+    fun quitChallenge() {
+        this.quited = true
+        this.quitDate = LocalDateTime.now()
+    }
 }
