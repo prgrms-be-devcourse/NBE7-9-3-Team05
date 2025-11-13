@@ -88,11 +88,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build without tests
-        run: ./gradlew build -x test -x checkstyleMain -x checkstyleTest --no-daemon
-
-      - name: Run Checkstyle
-        run: ./gradlew checkstyleMain checkstyleTest --no-daemon
-        continue-on-error: false
+        run: ./gradlew build -x test --no-daemon
 
       - name: Write application-test.yml from secret
         working-directory: motionit
@@ -115,7 +111,7 @@ jobs:
 
       # 전체(단위+통합) 실행
       - name: Run Full Test
-        run: ./gradlew --no-daemon clean fullTest --info --stacktrace -x checkstyleMain -x checkstyleTest
+        run: ./gradlew --no-daemon clean fullTest --info --stacktrace
 
       - name: Generate JaCoCo (fullTest)
         if: always()
@@ -446,7 +442,7 @@ jobs:
                 issue_number: context.payload.pull_request.number,
                 body
               });
-            } 
+            }
       - name: Parse test results
         if: always()
         id: test_results
@@ -484,193 +480,97 @@ jobs:
 
       - name: ✨ Slack 알림 (성공)
         if: success()
-        uses: actions/github-script@v7
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          PASSED: ${{ steps.test_results.outputs.passed }}
-          FAILED: ${{ steps.test_results.outputs.failed }}
-          SKIPPED: ${{ steps.test_results.outputs.skipped }}
-          COVERAGE: ${{ steps.cov.outputs.pct || 'N/A' }}
+        uses: slackapi/slack-github-action@v1
         with:
-          script: |
-            const https = require('https');
-            const url = require('url');
-
-            // PR 제목 또는 커밋 메시지의 첫 줄만 사용
-            let title = '';
-            let prNumber = '';
-            if (context.payload.pull_request) {
-              prNumber = `#${context.payload.pull_request.number}`;
-              title = context.payload.pull_request.title;
-            } else if (context.payload.head_commit) {
-              title = context.payload.head_commit.message.split('\n')[0];
-            }
-
-            const payload = {
-              text: "✅ Backend CI 성공",
-              blocks: [
+          payload: |
+            {
+              "text": "✅ Backend CI 성공",
+              "blocks": [
                 {
-                  type: "header",
-                  text: {
-                    type: "plain_text",
-                    text: "✅ Backend CI 성공",
-                    emoji: true
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "✅ Backend CI 성공",
+                    "emoji": true
                   }
                 },
                 {
-                  type: "section",
-                  fields: [
+                  "type": "section",
+                  "fields": [
                     {
-                      type: "mrkdwn",
-                      text: `*PR*\n${prNumber} ${title}`
+                      "type": "mrkdwn",
+                      "text": "*PR*\n#${{ github.event.pull_request.number }} - ${{ github.event.pull_request.title || github.event.head_commit.message }}"
                     },
                     {
-                      type: "mrkdwn",
-                      text: `*Author*\n${context.actor}`
+                      "type": "mrkdwn",
+                      "text": "*Author*\n${{ github.actor }}"
                     },
                     {
-                      type: "mrkdwn",
-                      text: `*Tests*\n✅ ${process.env.PASSED} passed\n❌ ${process.env.FAILED} failed\n⏭️ ${process.env.SKIPPED} skipped`
+                      "type": "mrkdwn",
+                      "text": "*Tests*\n✅ ${{ steps.test_results.outputs.passed }} passed\n❌ ${{ steps.test_results.outputs.failed }} failed\n⏭️ ${{ steps.test_results.outputs.skipped }} skipped"
                     },
                     {
-                      type: "mrkdwn",
-                      text: `*Coverage*\n${process.env.COVERAGE}%`
+                      "type": "mrkdwn",
+                      "text": "*Coverage*\n${{ steps.cov.outputs.pct || 'N/A' }}%"
                     }
                   ]
                 },
                 {
-                  type: "section",
-                  text: {
-                    type: "mrkdwn",
-                    text: `🔗 <https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}|로그 확인하기>`
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "🔗 <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|로그 확인하기>"
                   }
                 }
               ]
-            };
-
-            const webhookUrl = process.env.SLACK_WEBHOOK_URL;
-            const parsedUrl = url.parse(webhookUrl);
-            const postData = JSON.stringify(payload);
-
-            const options = {
-              hostname: parsedUrl.hostname,
-              port: 443,
-              path: parsedUrl.path,
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Content-Length': Buffer.byteLength(postData)
-              }
-            };
-
-            return new Promise((resolve, reject) => {
-              const req = https.request(options, (res) => {
-                let data = '';
-                res.on('data', (chunk) => { data += chunk; });
-                res.on('end', () => {
-                  if (res.statusCode === 200) {
-                    resolve(data);
-                  } else {
-                    reject(new Error(`Slack API returned ${res.statusCode}: ${data}`));
-                  }
-                });
-              });
-
-              req.on('error', reject);
-              req.write(postData);
-              req.end();
-            });
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
 
       - name: ✨ Slack 알림 (실패)
         if: failure()
-        uses: actions/github-script@v7
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          PASSED: ${{ steps.test_results.outputs.passed }}
-          FAILED: ${{ steps.test_results.outputs.failed }}
+        uses: slackapi/slack-github-action@v1
         with:
-          script: |
-            const https = require('https');
-            const url = require('url');
-
-            // PR 제목 또는 커밋 메시지의 첫 줄만 사용
-            let title = '';
-            let prNumber = '';
-            if (context.payload.pull_request) {
-              prNumber = `#${context.payload.pull_request.number}`;
-              title = context.payload.pull_request.title;
-            } else if (context.payload.head_commit) {
-              title = context.payload.head_commit.message.split('\n')[0];
-            }
-
-            const payload = {
-              text: "❌ Backend CI 실패",
-              blocks: [
+          payload: |
+            {
+              "text": "❌ Backend CI 실패",
+              "blocks": [
                 {
-                  type: "header",
-                  text: {
-                    type: "plain_text",
-                    text: "❌ Backend CI 실패",
-                    emoji: true
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "❌ Backend CI 실패",
+                    "emoji": true
                   }
                 },
                 {
-                  type: "section",
-                  fields: [
+                  "type": "section",
+                  "fields": [
                     {
-                      type: "mrkdwn",
-                      text: `*PR*\n${prNumber} ${title}`
+                      "type": "mrkdwn",
+                      "text": "*PR*\n#${{ github.event.pull_request.number }} - ${{ github.event.pull_request.title || github.event.head_commit.message }}"
                     },
                     {
-                      type: "mrkdwn",
-                      text: `*Author*\n${context.actor}`
+                      "type": "mrkdwn",
+                      "text": "*Author*\n${{ github.actor }}"
                     },
                     {
-                      type: "mrkdwn",
-                      text: `*Tests*\n✅ ${process.env.PASSED} passed\n❌ ${process.env.FAILED} failed`
+                      "type": "mrkdwn",
+                      "text": "*Tests*\n✅ ${{ steps.test_results.outputs.passed }} passed\n❌ ${{ steps.test_results.outputs.failed }} failed"
                     }
                   ]
                 },
                 {
-                  type: "section",
-                  text: {
-                    type: "mrkdwn",
-                    text: `🔗 <https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}|로그 확인하기>`
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "🔗 <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|로그 확인하기>"
                   }
                 }
               ]
-            };
-
-            const webhookUrl = process.env.SLACK_WEBHOOK_URL;
-            const parsedUrl = url.parse(webhookUrl);
-            const postData = JSON.stringify(payload);
-
-            const options = {
-              hostname: parsedUrl.hostname,
-              port: 443,
-              path: parsedUrl.path,
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Content-Length': Buffer.byteLength(postData)
-              }
-            };
-
-            return new Promise((resolve, reject) => {
-              const req = https.request(options, (res) => {
-                let data = '';
-                res.on('data', (chunk) => { data += chunk; });
-                res.on('end', () => {
-                  if (res.statusCode === 200) {
-                    resolve(data);
-                  } else {
-                    reject(new Error(`Slack API returned ${res.statusCode}: ${data}`));
-                  }
-                });
-              });
-
-              req.on('error', reject);
-              req.write(postData);
-              req.end();
-            });
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
 
