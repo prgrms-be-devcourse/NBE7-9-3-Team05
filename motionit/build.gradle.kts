@@ -5,7 +5,6 @@ plugins {
     kotlin("jvm") version "1.9.25"
     kotlin("plugin.spring") version "1.9.25"
     kotlin("plugin.jpa") version "1.9.25"
-    kotlin("kapt") version "1.9.25"
     checkstyle
     jacoco
 }
@@ -31,21 +30,23 @@ repositories {
 }
 
 dependencies {
+    developmentOnly("org.springframework.boot:spring-boot-devtools")
+    runtimeOnly("com.h2database:h2")
+    implementation("org.springframework.boot:spring-boot-starter-web")
+
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
+    implementation("io.github.openfeign.querydsl:querydsl-core:7.1")
+
     implementation("org.springframework.boot:spring-boot-starter-batch")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.security:spring-security-messaging")
     implementation("org.springframework.boot:spring-boot-starter-validation")
-    implementation("org.springframework.boot:spring-boot-starter-web")
+
     implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
     implementation("org.springframework.boot:spring-boot-starter-websocket")
-    implementation("org.jetbrains.kotlin:kotlin-reflect")
-    implementation("io.github.openfeign.querydsl:querydsl-core:7.1")
-    kapt("io.github.openfeign.querydsl:querydsl-apt:7.0:jpa")
 
     compileOnly("org.projectlombok:lombok")
-    developmentOnly("org.springframework.boot:spring-boot-devtools")
-    runtimeOnly("com.h2database:h2")
     runtimeOnly("com.mysql:mysql-connector-j")
     annotationProcessor("org.projectlombok:lombok")
 
