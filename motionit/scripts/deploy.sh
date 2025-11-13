@@ -42,7 +42,6 @@ docker run -d \
   --name ${CONTAINER_NAME} \
   --restart unless-stopped \
   -p ${APP_PORT}:8080 \
-  --network host \
   -e SPRING_PROFILES_ACTIVE=prod \
   -e DATABASE_URL="${DATABASE_URL}" \
   -e DB_USERNAME="${DB_USERNAME}" \
@@ -62,6 +61,11 @@ docker run -d \
   ${DOCKER_IMAGE}:latest
 
 echo -e "${GREEN}✓ Container started${NC}"
+
+# 컨테이너 로그 확인
+echo -e "\n${YELLOW}Initial container logs:${NC}"
+sleep 3
+docker logs --tail 20 ${CONTAINER_NAME}
 
 # 5. Health Check
 echo -e "\n${YELLOW}[5/5] Waiting for application to be healthy...${NC}"

@@ -56,6 +56,7 @@ jobs:
           echo "  - ${IMAGE_NAME}:${TIMESTAMP}-${SHORT_SHA}"
 
       - name: Copy deploy script to EC2
+        working-directory: .
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -87,6 +88,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 5m
           envs: DATABASE_URL,DB_USERNAME,DB_PASSWORD,AWS_ACCESS_KEY,AWS_SECRET_KEY,AWS_S3_BUCKET_NAME,AWS_CLOUDFRONT_DOMAIN,AWS_CLOUDFRONT_KEY_ID,AWS_CLOUDFRONT_PRIVATE_KEY_PATH,JWT_SECRET,JWT_ACCESS_TOKEN_EXPIRATION,JWT_REFRESH_TOKEN_EXPIRATION,OPENAI_API_KEY,YOUTUBE_API_KEY,KAKAO_CLIENT_ID
           script: |
             cd /home/ubuntu
