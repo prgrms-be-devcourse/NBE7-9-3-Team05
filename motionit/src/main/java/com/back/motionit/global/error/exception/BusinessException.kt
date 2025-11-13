@@ -1,21 +1,14 @@
-package com.back.motionit.global.error.exception;
+package com.back.motionit.global.error.exception
 
-import com.back.motionit.global.error.code.ErrorCode;
+import com.back.motionit.global.error.code.ErrorCode
 
-import lombok.Getter;
 
-@Getter
-public class BusinessException extends RuntimeException {
-
-	private final ErrorCode errorCode;
-
-	public BusinessException(ErrorCode errorCode) {
-		super(errorCode.getMessage());
-		this.errorCode = errorCode;
-	}
-
-	public BusinessException(ErrorCode errorCode, String detailMessage) {
-		super(errorCode.getMessage() + " - " + detailMessage);
-		this.errorCode = errorCode;
-	}
+//TODO: 더욱 코틀린스럽게 수정 가능, 지금은 자바와 구조가 비슷함
+class BusinessException(
+    val errorCode: ErrorCode,
+) : RuntimeException(errorCode.message) {
+    constructor(errorCode: ErrorCode, detailMessage: String) :
+            this(errorCode) {
+                initCause(RuntimeException("${errorCode.message} - $detailMessage"))
+            }
 }
