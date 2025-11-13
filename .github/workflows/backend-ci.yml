@@ -478,8 +478,8 @@ jobs:
             echo "skipped=0" >> $GITHUB_OUTPUT
           fi
 
-      - name: ✨ Slack 알림 (성공)
-        if: success()
+      - name: ✨ Slack 알림 (성공 - PR)
+        if: success() && github.event_name == 'pull_request'
         uses: slackapi/slack-github-action@v1
         with:
           payload: |
@@ -499,7 +499,7 @@ jobs:
                   "fields": [
                     {
                       "type": "mrkdwn",
-                      "text": "*PR*\n#${{ github.event.pull_request.number }} - ${{ github.event.pull_request.title || github.event.head_commit.message }}"
+                      "text": "*PR*\n#${{ github.event.pull_request.number }} - ${{ github.event.pull_request.title }}"
                     },
                     {
                       "type": "mrkdwn",
@@ -514,6 +514,59 @@ jobs:
                       "text": "*Coverage*\n${{ steps.cov.outputs.pct || 'N/A' }}%"
                     }
                   ]
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "🔗 <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|로그 확인하기>"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+      - name: ✨ Slack 알림 (성공 - Push)
+        if: success() && github.event_name == 'push'
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "✅ Backend CI 성공",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "✅ Backend CI 성공",
+                    "emoji": true
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Branch*\n${{ github.ref_name }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Author*\n${{ github.actor }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Tests*\n✅ ${{ steps.test_results.outputs.passed }} passed\n❌ ${{ steps.test_results.outputs.failed }} failed\n⏭️ ${{ steps.test_results.outputs.skipped }} skipped"
+                    }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Commit*\n${{ github.event.head_commit.message }}"
+                  }
                 },
                 {
                   "type": "section",
