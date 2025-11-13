@@ -5,7 +5,7 @@ FROM gradle:8.5-jdk21 AS builder
 WORKDIR /app
 
 # Copy Gradle files
-COPY build.gradle settings.gradle ./
+COPY build.gradle.kts settings.gradle.kts ./
 COPY gradle ./gradle
 
 # Download dependencies (cached layer)
