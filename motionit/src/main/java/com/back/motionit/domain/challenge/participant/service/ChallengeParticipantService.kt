@@ -47,7 +47,7 @@ class ChallengeParticipantService(
 
         // 챌린지 룸의 현재 참가자 수가 최대 인원 수에 도달했는지 확인
         val currentParticipants = challengeParticipantRepository.countByChallengeRoomAndQuitedFalse(challengeRoom)
-        if (currentParticipants >= challengeRoom.getCapacity()) {
+        if (currentParticipants >= challengeRoom.capacity) {
             throw BusinessException(ChallengeParticipantErrorCode.FULL_JOINED_ROOM)
         }
 
