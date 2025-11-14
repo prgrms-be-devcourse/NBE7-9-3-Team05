@@ -1,8 +1,9 @@
-package com.back.motionit.domain.challenge.video.dto;
+package com.back.motionit.domain.challenge.video.dto
 
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotBlank
 
-public record ChallengeVideoUploadRequest(
-	@NotBlank String youtubeUrl
-) {
-}
+data class ChallengeVideoUploadRequest(
+    @JvmField
+	@field:NotBlank
+    val youtubeUrl: String
+)

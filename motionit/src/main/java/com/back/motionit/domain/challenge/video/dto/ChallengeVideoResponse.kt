@@ -1,34 +1,33 @@
-package com.back.motionit.domain.challenge.video.dto;
+package com.back.motionit.domain.challenge.video.dto
 
-import java.time.LocalDate;
+import com.back.motionit.domain.challenge.video.entity.ChallengeVideo
+import java.time.LocalDate
 
-import com.back.motionit.domain.challenge.video.entity.ChallengeVideo;
-
-import lombok.Builder;
-
-@Builder
-public record ChallengeVideoResponse(
-	Long id,
-	String youtubeVideoId,
-	String title,
-	String thumbnailUrl,
-	Integer duration,
-	LocalDate uploadDate,
-	boolean isTodayMission,
-	Long uploaderId,
-	Long roomId
+data class ChallengeVideoResponse(
+    val id: Long,
+    val youtubeVideoId: String,
+    val title: String,
+    val thumbnailUrl: String,
+    val duration: Int,
+    val uploadDate: LocalDate,
+    val isTodayMission: Boolean,
+    val uploaderId: Long,
+    val roomId: Long
 ) {
-	public static ChallengeVideoResponse from(ChallengeVideo video) {
-		return ChallengeVideoResponse.builder()
-			.id(video.getId())
-			.youtubeVideoId(video.getYoutubeVideoId())
-			.title(video.getTitle())
-			.thumbnailUrl(video.getThumbnailUrl())
-			.duration(video.getDuration())
-			.uploadDate(video.getUploadDate())
-			.isTodayMission(video.isTodayMission())
-			.uploaderId(video.getUser().getId())
-			.roomId(video.getChallengeRoom().getId())
-			.build();
-	}
+    companion object {
+        @JvmStatic
+        fun from(video: ChallengeVideo): ChallengeVideoResponse {
+            return ChallengeVideoResponse(
+                id = video.id!!,
+                youtubeVideoId = video.youtubeVideoId,
+                title = video.title,
+                thumbnailUrl = video.thumbnailUrl,
+                duration = video.duration,
+                uploadDate = video.uploadDate,
+                isTodayMission = video.isTodayMission,
+                uploaderId = video.user.id!!,
+                roomId = video.challengeRoom.id!!
+            )
+        }
+    }
 }

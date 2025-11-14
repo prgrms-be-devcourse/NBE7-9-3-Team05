@@ -39,7 +39,7 @@ public class ChallengeVideoController implements ChallengeVideoApi {
 		User actor = requestContext.getActor();
 
 		ChallengeVideo savedVideo = challengeVideoService.uploadChallengeVideo(
-			actor.getId(), roomId, request.youtubeUrl()
+			actor.getId(), roomId, request.youtubeUrl
 		);
 		return ResponseData.success(ChallengeVideoHttp.UPLOAD_SUCCESS_MESSAGE, ChallengeVideoResponse.from(savedVideo));
 	}
