@@ -54,7 +54,7 @@ public class ChallengeVideoService {
 		// 방에 업로드된 영상들 중에서 오늘의 미션 영상만 필터링
 		// Querydsl 사용 / 명시적 JPQL 사용 대신 자바 스트림으로 필터링 -> 직관성
 		return challengeVideoRepository.findByChallengeRoomId(roomId).stream()
-			.filter(v -> v.getIsTodayMission() && v.getUploadDate().isEqual(LocalDate.now()))
+			.filter(v -> v.isTodayMission() && v.getUploadDate().isEqual(LocalDate.now()))
 			.toList();
 	}
 

@@ -26,7 +26,7 @@ public record ChallengeVideoResponse(
 			.thumbnailUrl(video.getThumbnailUrl())
 			.duration(video.getDuration())
 			.uploadDate(video.getUploadDate())
-			.isTodayMission(video.getIsTodayMission())
+			.isTodayMission(video.isTodayMission())
 			.uploaderId(video.getUser().getId())
 			.roomId(video.getChallengeRoom().getId())
 			.build();

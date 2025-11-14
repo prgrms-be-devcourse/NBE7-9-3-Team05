@@ -13,11 +13,11 @@ public class YoutubeMetadataClientStub extends YoutubeMetadataClient {
 	public YoutubeVideoMetadata fetchMetadata(String youtubeUrl) {
 		String videoId = extractVideoId(youtubeUrl); // 부모 클래스 메서드 그대로 사용
 
-		return YoutubeVideoMetadata.builder()
-			.videoId(videoId)
-			.title("Performance Test Video - " + videoId)
-			.thumbnailUrl("https://img.youtube.com/vi/" + videoId + "/hqdefault.jpg")
-			.durationSeconds(120)
-			.build();
+		return new YoutubeVideoMetadata(
+			videoId,
+			"Performance Test Video - " + videoId,
+			"https://img.youtube.com/vi/" + videoId + "/hqdefault.jpg",
+			120
+		);
 	}
 }

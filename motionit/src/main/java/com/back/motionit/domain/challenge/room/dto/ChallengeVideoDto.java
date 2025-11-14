@@ -23,7 +23,7 @@ public record ChallengeVideoDto(
 			video.getThumbnailUrl(),
 			video.getDuration(),
 			video.getUploadDate(),
-			video.getIsTodayMission()
+			video.isTodayMission()
 		);
 	}
 }

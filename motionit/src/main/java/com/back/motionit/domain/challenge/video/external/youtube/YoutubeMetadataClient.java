@@ -43,12 +43,19 @@ public class YoutubeMetadataClient {
 		// 데이터 추출 및 YoutubeVideoMetadata dto에 매핑
 		Map snippet = (Map)items.get(0).get("snippet");
 		Map contentDetails = (Map)items.get(0).get("contentDetails");
-		return YoutubeVideoMetadata.builder()
-			.videoId(videoId)
-			.title((String)snippet.get("title"))
-			.thumbnailUrl((String)((Map<String, Map>)snippet.get("thumbnails")).get("high").get("url"))
-			.durationSeconds(parseDuration((String)contentDetails.get("duration")))
-			.build();
+		return new YoutubeVideoMetadata(
+			videoId,
+			(String)snippet.get("title"),
+			(String)((Map<String, Map>)snippet.get("thumbnails")).get("high").get("url"),
+			parseDuration((String)contentDetails.get("duration"))
+		);
+
+		// return YoutubeVideoMetadata.builder()
+		// 	.videoId(videoId)
+		// 	.title((String)snippet.get("title"))
+		// 	.thumbnailUrl((String)((Map<String, Map>)snippet.get("thumbnails")).get("high").get("url"))
+		// 	.durationSeconds(parseDuration((String)contentDetails.get("duration")))
+		// 	.build();
 	}
 
 	// 유튜브 URL에서 비디오 ID를 추출하는 헬퍼 메서드, watch?v=VIDEO_ID 형식 가정
