@@ -1,87 +1,100 @@
-package com.back.motionit.domain.user.entity;
+package com.back.motionit.domain.user.entity
 
-import com.back.motionit.global.jpa.entity.BaseEntity;
-
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import com.back.motionit.global.jpa.entity.BaseEntity
+import jakarta.persistence.Column
+import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
+import jakarta.persistence.Table
+import jakarta.persistence.UniqueConstraint
 
 @Entity
-@Table(name = "users",
-	uniqueConstraints = {
-		@UniqueConstraint(
-			name = "uk_login_type_email",
-			columnNames = {"login_type", "email"}
-		),
-		@UniqueConstraint(
-			name = "uk_login_type_kakao_id",
-			columnNames = {"login_type", "kakao_id"}
-		)
-	})
-@Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class User extends BaseEntity {
+@Table(
+    name = "users",
+    uniqueConstraints = [
+        UniqueConstraint(
+            name = "uk_login_type_email",
+            columnNames = ["login_type", "email"]
+        ),
+        UniqueConstraint(
+            name = "uk_login_type_kakao_id",
+            columnNames = ["login_type", "kakao_id"]
+        )
+    ]
+)
+class User(
+    @Column(name = "kakao_id")
+    var kakaoId: Long? = null,
 
-	@Column(name = "kakao_id")
-	private Long kakaoId;
+    @Column(length = 100)
+    var email: String? = null,
 
-	@Column(length = 100)
-	private String email;
+    @Column(nullable = false, length = 50)
+    var nickname: String,
 
-	@Column(nullable = false, length = 50)
-	private String nickname;
+    @Column(length = 255)
+    var password: String? = null,
 
-	@Column(length = 255)
-	private String password;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "login_type", nullable = false, length = 20)
+    var loginType: LoginType,
 
-	@Column(name = "refresh_token", length = 500)
-	private String refreshToken;
+    @Column(name = "user_profile", length = 500)
+    var userProfile: String? = null
+) : BaseEntity() {
 
-	@Enumerated(EnumType.STRING)
-	@Column(name = "login_type", nullable = false, length = 20)
-	private LoginType loginType;
+    @Column(name = "refresh_token", length = 500)
+    var refreshToken: String? = null
 
-	@Column(name = "user_profile", length = 500)
-	private String userProfile;
+    // 테스트용 생성자 (id, nickname만 받는 경우)
+    constructor(id: Long?, nickname: String) : this(
+        kakaoId = null,
+        email = null,
+        nickname = nickname,
+        password = null,
+        loginType = LoginType.LOCAL,
+        userProfile = null
+    ) {
+        this.id = id
+    }
 
-	@Builder
-	public User(Long kakaoId, String email, String nickname, String password,
-		LoginType loginType, String userProfile) {
-		this.kakaoId = kakaoId;
-		this.email = email;
-		this.nickname = nickname;
-		this.password = password;
-		this.loginType = loginType;
-		this.userProfile = userProfile;
-	}
+    fun updateRefreshToken(refreshToken: String?) {
+        this.refreshToken = refreshToken
+    }
 
-	public User(Long id, String nickname) {
-		super(id);
-		this.nickname = nickname;
-	}
+    fun removeRefreshToken() {
+        this.refreshToken = null
+    }
 
-	public void updateRefreshToken(String refreshToken) {
-		this.refreshToken = refreshToken;
-	}
+    fun updatePassword(password: String?) {
+        this.password = password
+    }
 
-	public void removeRefreshToken() {
-		this.refreshToken = null;
-	}
+    fun update(nickname: String, userProfile: String?) {
+        this.nickname = nickname
+        this.userProfile = userProfile
+    }
 
-	public void updatePassword(String password) {
-		this.password = password;
-	}
+    companion object {
+        @JvmStatic
+        fun builder(): UserBuilder = UserBuilder()
+    }
 
-	public void update(String nickname, String userProfile) {
-		this.nickname = nickname;
-		this.userProfile = userProfile;
-	}
+    class UserBuilder {
+        private var kakaoId: Long? = null
+        private var email: String? = null
+        private var nickname: String = ""
+        private var password: String? = null
+        private var loginType: LoginType = LoginType.LOCAL
+        private var userProfile: String? = null
 
+        fun kakaoId(kakaoId: Long?) = apply { this.kakaoId = kakaoId }
+        fun email(email: String?) = apply { this.email = email }
+        fun nickname(nickname: String) = apply { this.nickname = nickname }
+        fun password(password: String?) = apply { this.password = password }
+        fun loginType(loginType: LoginType) = apply { this.loginType = loginType }
+        fun userProfile(userProfile: String?) = apply { this.userProfile = userProfile }
+
+        fun build() = User(kakaoId, email, nickname, password, loginType, userProfile)
+    }
 }
