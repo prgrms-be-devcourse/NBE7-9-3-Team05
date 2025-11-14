@@ -14,6 +14,7 @@ import com.back.motionit.domain.user.repository.UserRepository
 import com.back.motionit.global.error.code.ChallengeVideoErrorCode
 import com.back.motionit.global.error.exception.BusinessException
 import lombok.RequiredArgsConstructor
+import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDate
@@ -79,13 +80,13 @@ class ChallengeVideoService(
      * * 3. QueryDSL exists() 서브쿼리 활용으로 중복 조회 제거
      */
     private fun getUserOrThrow(userId: Long): User {
-        return userRepository.findById(userId)
-            .orElseThrow { BusinessException(ChallengeVideoErrorCode.NOT_FOUND_USER) }
+        return userRepository.findByIdOrNull(userId)
+            ?: throw BusinessException(ChallengeVideoErrorCode.NOT_FOUND_USER)
     }
 
     private fun getRoomOrThrow(roomId: Long): ChallengeRoom {
-        return challengeRoomRepository.findById(roomId)
-            .orElseThrow { BusinessException(ChallengeVideoErrorCode.CANNOT_FIND_CHALLENGE_ROOM) }
+        return challengeRoomRepository.findByIdOrNull(roomId)
+            ?: throw BusinessException(ChallengeVideoErrorCode.CANNOT_FIND_CHALLENGE_ROOM)
     }
 
     private fun fetchMetadata(youtubeUrl: String): YoutubeVideoMetadata {
