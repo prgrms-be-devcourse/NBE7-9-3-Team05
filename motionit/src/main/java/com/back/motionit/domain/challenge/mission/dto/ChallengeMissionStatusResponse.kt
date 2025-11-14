@@ -29,20 +29,5 @@ data class ChallengeMissionStatusResponse(
                 aiSummary = status.aiMessage
             )
         }
-
-        @JvmStatic
-        fun from(status: ChallengeMissionStatus, aiSummary: String?): ChallengeMissionStatusResponse {
-            val participant = status.participant
-            val user = participant.user
-            return ChallengeMissionStatusResponse(
-                participantId = participant.id,
-                nickname = user.nickname,
-                userProfile = user.userProfile,
-                missionDate = status.missionDate,
-                completed = status.completed,
-                role = participant.role,
-                aiSummary = aiSummary
-            )
-        }
     }
 }
