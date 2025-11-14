@@ -35,7 +35,10 @@ class ChallengeParticipantService(
             .orElseThrow{ BusinessException(ChallengeParticipantErrorCode.NOT_FOUND_USER) }
 
         val challengeRoom = challengeRoomRepository.findByIdWithLock(roomId)
-            .orElseThrow{ BusinessException(ChallengeParticipantErrorCode.CANNOT_FIND_CHALLENGE_ROOM) }
+
+        if (challengeRoom == null) {
+            throw BusinessException(ChallengeParticipantErrorCode.CANNOT_FIND_CHALLENGE_ROOM)
+        }
 
         // 이미 참여중인 사용자인지 확인
         // TODO: !!는 전환단계에서만 유지, user/room 전환 후 리팩터링 필요
@@ -63,6 +66,10 @@ class ChallengeParticipantService(
         val challengeRoom = challengeRoomRepository.findById(challengeRoomId)
             .orElseThrow{ BusinessException(ChallengeParticipantErrorCode.CANNOT_FIND_CHALLENGE_ROOM) }
 
+        if (challengeRoom == null) {
+            throw BusinessException(ChallengeParticipantErrorCode.CANNOT_FIND_CHALLENGE_ROOM)
+        }
+
         val participant = challengeParticipantRepository.findByUserAndChallengeRoom(user, challengeRoom)
             ?: throw BusinessException(ChallengeParticipantErrorCode.NO_PARTICIPANT_IN_ROOM)
 
@@ -81,6 +88,10 @@ class ChallengeParticipantService(
 
         val challengeRoom = challengeRoomRepository.findById(roomId)
             .orElseThrow{ BusinessException(ChallengeParticipantErrorCode.CANNOT_FIND_CHALLENGE_ROOM) }
+
+        if (challengeRoom == null) {
+            throw BusinessException(ChallengeParticipantErrorCode.CANNOT_FIND_CHALLENGE_ROOM)
+        }
 
         val participant = challengeParticipantRepository.findByUserAndChallengeRoom(user, challengeRoom)
             ?: throw BusinessException(ChallengeParticipantErrorCode.NO_PARTICIPANT_IN_ROOM)
