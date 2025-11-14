@@ -1,110 +1,104 @@
-package com.back.motionit.domain.challenge.mission.controller;
+package com.back.motionit.domain.challenge.mission.controller
 
-import static com.back.motionit.domain.challenge.mission.api.response.ChallengeMissionStatusHttp.*;
+import com.back.motionit.domain.challenge.mission.api.ChallengeMissionStatusApi
+import com.back.motionit.domain.challenge.mission.api.response.ChallengeMissionStatusHttp
+import com.back.motionit.domain.challenge.mission.dto.ChallengeMissionStatusResponse
+import com.back.motionit.domain.challenge.mission.dto.ChallengeMissionStatusResponse.Companion.from
+import com.back.motionit.domain.challenge.mission.service.ChallengeMissionStatusService
+import com.back.motionit.domain.challenge.validator.ChallengeAuthValidator
+import com.back.motionit.global.request.RequestContext
+import com.back.motionit.global.respoonsedata.ResponseData
+import com.back.motionit.global.respoonsedata.ResponseData.Companion.success
+import io.github.oshai.kotlinlogging.KotlinLogging
+import org.springframework.web.bind.annotation.*
 
-import java.util.List;
-
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import com.back.motionit.domain.challenge.mission.api.ChallengeMissionStatusApi;
-import com.back.motionit.domain.challenge.mission.dto.ChallengeMissionStatusResponse;
-import com.back.motionit.domain.challenge.mission.entity.ChallengeMissionStatus;
-import com.back.motionit.domain.challenge.mission.service.ChallengeMissionStatusService;
-import com.back.motionit.domain.challenge.validator.ChallengeAuthValidator;
-import com.back.motionit.domain.user.entity.User;
-import com.back.motionit.global.request.RequestContext;
-import com.back.motionit.global.respoonsedata.ResponseData;
-
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
-@Slf4j
 @RestController
 @RequestMapping("/api/v1/challenge/rooms/{roomId}/missions")
-@RequiredArgsConstructor
-public class ChallengeMissionStatusController implements ChallengeMissionStatusApi {
+class ChallengeMissionStatusController(
+    private val challengeMissionStatusService: ChallengeMissionStatusService,
+    private val requestContext: RequestContext,
+    private val challengeAuthValidator: ChallengeAuthValidator, // 챌린지 방참여자 여부 판단
+) : ChallengeMissionStatusApi {
+    private val log = KotlinLogging.logger {}
 
-	private final ChallengeMissionStatusService challengeMissionStatusService;
-	private final RequestContext requestContext;
-	private final ChallengeAuthValidator challengeAuthValidator; // 챌린지 방참여자 여부 판단
+    @GetMapping("/ai-summary")
+    override fun generateAiSummary(@PathVariable roomId: Long): ResponseData<String> {
+        val actor = requestContext.getActor()
+        val message = challengeMissionStatusService.generateAiSummary(roomId, actor.id!!)
+        return success(
+            "AI 응원 메시지 조회 완료",
+            message
+        )
+    }
 
-	@GetMapping("/ai-summary")
-	public ResponseData<String> generateAiSummary(@PathVariable Long roomId) {
-		User actor = requestContext.getActor();
-		String message = challengeMissionStatusService.generateAiSummary(roomId, actor.getId());
-		return ResponseData.success("AI 응원 메시지 조회 완료", message);
-	}
+    @PostMapping("/complete")
+    override fun completeMission(
+        @PathVariable("roomId") roomId: Long
+    ): ResponseData<ChallengeMissionStatusResponse> {
+        val actor = requestContext.getActor()
+        // 방 참여자가 아닐경우 API 접근 차단
+        challengeAuthValidator.validateActiveParticipant(actor.id!!, roomId)
 
-	@PostMapping("/complete")
-	public ResponseData<ChallengeMissionStatusResponse> completeMission(
-		@PathVariable("roomId") Long roomId
-	) {
-		User actor = requestContext.getActor();
-		// 방 참여자가 아닐경우 API 접근 차단
-		challengeAuthValidator.validateActiveParticipant(actor.getId(), roomId);
+        val mission = challengeMissionStatusService.completeMission(
+            roomId, actor.id!!
+        )
 
-		ChallengeMissionStatus mission = challengeMissionStatusService.completeMission(
-			roomId, actor.getId()
-		);
+        return success(
+            ChallengeMissionStatusHttp.MISSION_COMPLETE_SUCCESS_MESSAGE,
+            from(mission)
+        )
+    }
 
-		return ResponseData.success(
-			MISSION_COMPLETE_SUCCESS_MESSAGE,
-			ChallengeMissionStatusResponse.from(mission)
-		);
-	}
+    @GetMapping("/today")
+    override fun getTodayMissionByRoom(
+        @PathVariable("roomId") roomId: Long
+    ): ResponseData<List<ChallengeMissionStatusResponse>> {
+        val actor = requestContext.getActor()
+        // 방 참여자가 아닐경우 API 접근 차단
+        challengeAuthValidator.validateActiveParticipant(actor.id!!, roomId)
 
-	@GetMapping("/today")
-	public ResponseData<List<ChallengeMissionStatusResponse>> getTodayMissionByRoom(
-		@PathVariable("roomId") Long roomId
-	) {
-		User actor = requestContext.getActor();
-		// 방 참여자가 아닐경우 API 접근 차단
-		challengeAuthValidator.validateActiveParticipant(actor.getId(), roomId);
+        val list = challengeMissionStatusService
+            .getTodayMissionsByRoom(roomId, actor.id!!)
+            .map { from(it) }   // it은 ChallengeMissionStatus
 
-		List<ChallengeMissionStatusResponse> list = challengeMissionStatusService
-			.getTodayMissionsByRoom(roomId, actor.getId())
-			.stream()
-			.map(ChallengeMissionStatusResponse::from)
-			.toList();
+        val message = if (list.isEmpty())
+            ChallengeMissionStatusHttp.GET_TODAY_NO_MISSION_MESSAGE
+        else
+            ChallengeMissionStatusHttp.GET_TODAY_SUCCESS_MESSAGE
 
-		if (list.isEmpty()) {
-			return ResponseData.success(GET_TODAY_NO_MISSION_MESSAGE, list);
-		}
-		return ResponseData.success(GET_TODAY_SUCCESS_MESSAGE, list);
-	}
+        return success(message, list)
+    }
 
-	@GetMapping("/personal/today")
-	public ResponseData<ChallengeMissionStatusResponse> getTodayMissionStatus(
-		@PathVariable("roomId") Long roomId
-	) {
-		User actor = requestContext.getActor();
-		// 방 참여자가 아닐경우 API 접근 차단
-		challengeAuthValidator.validateActiveParticipant(actor.getId(), roomId);
+    @GetMapping("/personal/today")
+    override fun getTodayMissionStatus(
+        @PathVariable("roomId") roomId: Long
+    ): ResponseData<ChallengeMissionStatusResponse> {
+        val actor = requestContext.getActor()
+        // 방 참여자가 아닐경우 API 접근 차단
+        challengeAuthValidator.validateActiveParticipant(actor.id!!, roomId)
 
-		ChallengeMissionStatus mission = challengeMissionStatusService.getTodayMissionStatus(roomId, actor.getId());
-		return ResponseData.success(GET_TODAY_PARTICIPANT_SUCCESS_MESSAGE,
-			ChallengeMissionStatusResponse.from(mission));
-	}
+        val mission = challengeMissionStatusService.getTodayMissionStatus(roomId, actor.id!!)
+        return success(
+            ChallengeMissionStatusHttp.GET_TODAY_PARTICIPANT_SUCCESS_MESSAGE,
+            from(mission)
+        )
+    }
 
-	@GetMapping("/personal/history")
-	public ResponseData<List<ChallengeMissionStatusResponse>> getMissionHistory(
-		@PathVariable("roomId") Long roomId
-	) {
-		User actor = requestContext.getActor();
-		// 방 참여자가 아닐경우 API 접근 차단
-		challengeAuthValidator.validateActiveParticipant(actor.getId(), roomId);
+    @GetMapping("/personal/history")
+    override fun getMissionHistory(
+        @PathVariable("roomId") roomId: Long
+    ): ResponseData<List<ChallengeMissionStatusResponse>> {
+        val actor = requestContext.getActor()
+        // 방 참여자가 아닐경우 API 접근 차단
+        challengeAuthValidator.validateActiveParticipant(actor.id!!, roomId)
 
-		List<ChallengeMissionStatusResponse> list = challengeMissionStatusService
-			.getMissionHistory(roomId, actor.getId())
-			.stream()
-			.map(ChallengeMissionStatusResponse::from)
-			.toList();
+        val list = challengeMissionStatusService
+            .getMissionHistory(roomId, actor.id!!)
+            .map { from(it) }
 
-		return ResponseData.success(GET_MISSION_HISTORY_SUCCESS_MESSAGE, list);
-	}
-
+        return success(
+            ChallengeMissionStatusHttp.GET_MISSION_HISTORY_SUCCESS_MESSAGE,
+            list
+        )
+    }
 }
