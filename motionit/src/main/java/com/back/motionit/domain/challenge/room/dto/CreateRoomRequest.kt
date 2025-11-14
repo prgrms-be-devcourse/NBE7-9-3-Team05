@@ -4,7 +4,6 @@ import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Size
 
-@JvmRecord
 data class CreateRoomRequest(
 	@field:NotBlank(message = "제목은 필수입니다.")
 	@field:Size(min = 2, max = 30, message = "제목은 30자 이내")
