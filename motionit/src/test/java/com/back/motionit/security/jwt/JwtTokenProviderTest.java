@@ -18,12 +18,20 @@ import com.back.motionit.standard.ut.JwtUtil;
 @ExtendWith(MockitoExtension.class)
 class JwtTokenProviderTest {
 
+	private JwtTokenProvider testProvider() {
+		return new JwtTokenProvider(
+			"test-secret",
+			3600L,
+			1209600000L
+		);
+	}
+
 	@Test
 	@DisplayName("Access 토큰 생성 테스트 - JwtUtil에 올바른 값 전달되는지 검증")
 	void generateAccessToken_Success() {
 
 		// given
-		JwtTokenProvider provider = new JwtTokenProvider();
+		JwtTokenProvider provider = testProvider();
 		ReflectionTestUtils.setField(provider, "secret", "test-secret");
 		ReflectionTestUtils.setField(provider, "accessTokenExpiration", 3600L);
 
@@ -53,7 +61,7 @@ class JwtTokenProviderTest {
 	void generateRefreshToken_Success() {
 
 		// given
-		JwtTokenProvider provider = new JwtTokenProvider();
+		JwtTokenProvider provider = testProvider();
 		ReflectionTestUtils.setField(provider, "secret", "test-secret");
 		ReflectionTestUtils.setField(provider, "refreshTokenExpiration", 7200L);
 
@@ -82,7 +90,7 @@ class JwtTokenProviderTest {
 	@DisplayName("payloadOrNull - JwtUtil에서 payload 반환 시 정상 변환")
 	void payloadOrNull_Success() {
 
-		JwtTokenProvider provider = new JwtTokenProvider();
+		JwtTokenProvider provider = testProvider();
 		ReflectionTestUtils.setField(provider, "secret", "test-secret");
 
 		Map<String, Object> fakePayload = Map.of(
@@ -108,7 +116,7 @@ class JwtTokenProviderTest {
 	@DisplayName("payloadOrNull - null 반환 시 null 반환")
 	void payloadOrNull_ReturnsNull() {
 
-		JwtTokenProvider provider = new JwtTokenProvider();
+		JwtTokenProvider provider = testProvider();
 		ReflectionTestUtils.setField(provider, "secret", "test-secret");
 
 		try (MockedStatic<JwtUtil.Jwt> mockedJwt = mockStatic(JwtUtil.Jwt.class)) {
@@ -128,7 +136,7 @@ class JwtTokenProviderTest {
 	@DisplayName("isExpired - JwtUtil의 isExpired 결과를 그대로 반환")
 	void isExpired_Success() {
 
-		JwtTokenProvider provider = new JwtTokenProvider();
+		JwtTokenProvider provider = testProvider();
 		ReflectionTestUtils.setField(provider, "secret", "test-secret");
 
 		try (MockedStatic<JwtUtil.Jwt> mockedJwt = mockStatic(JwtUtil.Jwt.class)) {
