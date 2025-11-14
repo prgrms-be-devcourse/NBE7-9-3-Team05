@@ -67,9 +67,11 @@ public class ChallengeParticipantService {
 		ChallengeRoom challengeRoom = challengeRoomRepository.findById(challengeRoomId)
 			.orElseThrow(() -> new BusinessException(ChallengeParticipantErrorCode.CANNOT_FIND_CHALLENGE_ROOM));
 
-		ChallengeParticipant participant = challengeParticipantRepository
-			.findByUserAndChallengeRoom(user, challengeRoom)
-			.orElseThrow(() -> new BusinessException(ChallengeParticipantErrorCode.NO_PARTICIPANT_IN_ROOM));
+		ChallengeParticipant participant = challengeParticipantRepository.findByUserAndChallengeRoom(user, challengeRoom);
+
+		if (participant == null) {
+			throw new BusinessException(ChallengeParticipantErrorCode.NO_PARTICIPANT_IN_ROOM);
+		}
 
 		// Soft delete
 		participant.quitChallenge();
@@ -88,9 +90,11 @@ public class ChallengeParticipantService {
 		ChallengeRoom challengeRoom = challengeRoomRepository.findById(roomId)
 			.orElseThrow(() -> new BusinessException(ChallengeParticipantErrorCode.CANNOT_FIND_CHALLENGE_ROOM));
 
-		ChallengeParticipant participant = challengeParticipantRepository
-			.findByUserAndChallengeRoom(user, challengeRoom)
-			.orElseThrow(() -> new BusinessException(ChallengeParticipantErrorCode.NO_PARTICIPANT_IN_ROOM));
+		ChallengeParticipant participant = challengeParticipantRepository.findByUserAndChallengeRoom(user, challengeRoom);
+
+		if (participant == null) {
+			throw new BusinessException(ChallengeParticipantErrorCode.NO_PARTICIPANT_IN_ROOM);
+		}
 
 		if (participant.getRole().equals(ChallengeParticipantRole.HOST)) {
 			return true;

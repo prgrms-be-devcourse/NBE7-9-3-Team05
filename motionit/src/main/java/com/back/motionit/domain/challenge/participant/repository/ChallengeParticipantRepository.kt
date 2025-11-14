@@ -1,80 +1,98 @@
-package com.back.motionit.domain.challenge.participant.repository;
+package com.back.motionit.domain.challenge.participant.repository
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
+import com.back.motionit.domain.challenge.participant.entity.ChallengeParticipant
+import com.back.motionit.domain.challenge.room.entity.ChallengeRoom
+import com.back.motionit.domain.user.entity.User
+import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
+interface ChallengeParticipantRepository : JpaRepository<ChallengeParticipant, Long> {
+    fun existsByUserAndChallengeRoom(user: User, challengeRoom: ChallengeRoom): Boolean
 
-import com.back.motionit.domain.challenge.participant.entity.ChallengeParticipant;
-import com.back.motionit.domain.challenge.room.entity.ChallengeRoom;
-import com.back.motionit.domain.user.entity.User;
+    fun findByUserAndChallengeRoom(user: User, challengeRoom: ChallengeRoom): ChallengeParticipant?
 
-public interface ChallengeParticipantRepository extends JpaRepository<ChallengeParticipant, Long> {
-	boolean existsByUserAndChallengeRoom(User user, ChallengeRoom challengeRoom);
+    fun countByChallengeRoomAndQuitedFalse(challengeRoom: ChallengeRoom): Int
 
-	Optional<ChallengeParticipant> findByUserAndChallengeRoom(User user, ChallengeRoom challengeRoom);
+    fun findAllByChallengeRoomAndQuitedFalse(room: ChallengeRoom): List<ChallengeParticipant>
 
-	Integer countByChallengeRoomAndQuitedFalse(ChallengeRoom challengeRoom);
-
-	List<ChallengeParticipant> findAllByChallengeRoomAndQuitedFalse(ChallengeRoom room);
-
-	@Query("""
+    @Query(
+        """
 			select case when count(p) > 0 then true else false end
 			from ChallengeParticipant p
 			where p.user.id = :userId
 			and p.challengeRoom.id = :roomId
 			and p.quited = false
-		""")
-	boolean existsActiveParticipant(@Param("userId") Long userId, @Param("roomId") Long roomId);
+		"""
+    )
+    fun existsActiveParticipant(
+        @Param("userId") userId: Long,
+        @Param("roomId") roomId: Long
+    ): Boolean
 
-	@Query("""
+    @Query(
+        """
 			select p from ChallengeParticipant p
 			join fetch p.user
 			where p.challengeRoom.id = :roomId
-		""")
-	List<ChallengeParticipant> findAllByRoomIdWithUser(@Param("roomId") Long roomId);
+		"""
+    )
+    fun findAllByRoomIdWithUser(@Param("roomId") roomId: Long): List<ChallengeParticipant>
 
-	@Query("""
+    @Query(
+        """
 			select p from ChallengeParticipant p
 			where p.user.id = :userId
 			and p.challengeRoom.id = :roomId
 			and p.quited = false
-		""")
-	Optional<ChallengeParticipant> findActiveParticipant(@Param("userId") Long userId,
-		@Param("roomId") Long roomId);
+		"""
+    )
+    fun findActiveParticipant(
+        @Param("userId") userId: Long,
+        @Param("roomId") roomId: Long
+    ): ChallengeParticipant?
 
-	@Query("""
+    @Query(
+        """
 			select cp
 			from ChallengeParticipant cp
 			join fetch cp.challengeRoom cr
 			where cp.user.id = :userId
 			and cr.id = :roomId
 			and cp.quited = false
-		""")
-	Optional<ChallengeParticipant> findActiveWithRoom(@Param("userId") Long userId,
-		@Param("roomId") Long roomId);
+		"""
+    )
+    fun findActiveWithRoom(
+        @Param("userId") userId: Long,
+        @Param("roomId") roomId: Long
+    ): ChallengeParticipant?
 
-	// 사용자 참여중 방 id 리스트(현재 페이지 roomIds 한정)
-	@Query("""
+    // 사용자 참여중 방 id 리스트(현재 페이지 roomIds 한정)
+    @Query(
+        """
 		select cp.challengeRoom.id
 		from ChallengeParticipant cp
 		where cp.quited = false
 			and cp.user.id = :userId
 			and cp.challengeRoom.id in :roomIds
-		""")
-	List<Long> findJoiningRoomIdsByUserAndRoomIds(@Param("userId") Long userId,
-		@Param("roomIds") Collection<Long> roomIds);
+		"""
+    )
+    fun findJoiningRoomIdsByUserAndRoomIds(
+        @Param("userId") userId: Long,
+        @Param("roomIds") roomIds: Collection<Long>
+    ): List<Long>
 
-	// roomId별 현재 인원수(quited=false) 집계
-	@Query("""
+    // roomId별 현재 인원수(quited=false) 집계
+    @Query(
+        """
 		select cp.challengeRoom.id as roomId, count(cp.id) as cnt
 		from ChallengeParticipant cp
 		where cp.quited = false
 			and cp.challengeRoom.id in :roomIds
 		group by cp.challengeRoom.id
-		""")
-	List<Object[]> countActiveParticipantsByRoomIds(@Param("roomIds") Collection<Long> roomIds);
+		"""
+    )
+    fun countActiveParticipantsByRoomIds(
+        @Param("roomIds") roomIds: Collection<Long>
+    ): MutableList<Array<Any>>
 }
