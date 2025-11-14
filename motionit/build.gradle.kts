@@ -31,7 +31,8 @@ repositories {
 
 dependencies {
     developmentOnly("org.springframework.boot:spring-boot-devtools")
-    runtimeOnly("com.h2database:h2")
+    developmentOnly("com.h2database:h2")
+    testRuntimeOnly("com.h2database:h2")
     implementation("org.springframework.boot:spring-boot-starter-web")
 
     implementation("org.jetbrains.kotlin:kotlin-reflect")
