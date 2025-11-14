@@ -1,95 +1,95 @@
-package com.back.motionit.standard.ut;
+package com.back.motionit.standard.ut
 
-import java.security.Key;
-import java.util.Date;
-import java.util.Map;
+import io.jsonwebtoken.ExpiredJwtException
+import io.jsonwebtoken.Jwts
+import io.jsonwebtoken.io.Decoders
+import io.jsonwebtoken.security.Keys
+import java.security.Key
+import java.util.*
 
-import javax.crypto.SecretKey;
+class JwtUtil {
+    object Jwt {
+        @JvmStatic
+        fun toString(secret: String, expireSeconds: Long, body: Map<String, Any>): String {
+            val claimsBuilder = Jwts.claims()
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.ClaimsBuilder;
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.io.Decoders;
-import io.jsonwebtoken.security.Keys;
+            for ((key, value) in body) {
+                claimsBuilder.add(key, value)
+            }
 
-public class JwtUtil {
-	public static class Jwt {
-		public static String toString(String secret, long expireSeconds, Map<String, Object> body) {
-			ClaimsBuilder claimsBuilder = Jwts.claims();
+            val claims = claimsBuilder.build()
 
-			for (Map.Entry<String, Object> entry : body.entrySet()) {
-				claimsBuilder.add(entry.getKey(), entry.getValue());
-			}
+            val issuedAt = Date()
+            val expiration = Date(issuedAt.time + 1000L * expireSeconds)
 
-			Claims claims = claimsBuilder.build();
+            val secretKey: Key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret.trim { it <= ' ' }))
 
-			Date issuedAt = new Date();
-			Date expiration = new Date(issuedAt.getTime() + 1000L * expireSeconds);
+            val jwt = Jwts.builder()
+                .claims(claims)
+                .issuedAt(issuedAt)
+                .expiration(expiration)
+                .signWith(secretKey)
+                .compact()
 
-			Key secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret.trim()));
+            return jwt
+        }
 
-			String jwt = Jwts.builder()
-				.claims(claims)
-				.issuedAt(issuedAt)
-				.expiration(expiration)
-				.signWith(secretKey)
-				.compact();
+        @JvmStatic
+        fun isValid(jwt: String, secret: String): Boolean {
+            val secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret.trim { it <= ' ' }))
 
-			return jwt;
-		}
+            try {
+                Jwts
+                    .parser()
+                    .verifyWith(secretKey)
+                    .build()
+                    .parse(jwt)
+            } catch (e: Exception) {
+                return false
+            }
 
-		public static boolean isValid(String jwt, String secret) {
+            return true
+        }
 
-			SecretKey secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret.trim()));
+        @JvmStatic
+        fun payloadOrNull(jwt: String?, secret: String): Map<String, Any>? {
+            if (jwt.isNullOrBlank()) return null
 
-			try {
-				Jwts
-					.parser()
-					.verifyWith(secretKey)
-					.build()
-					.parse(jwt);
+            val secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret.trim { it <= ' ' }))
 
-			} catch (Exception e) {
-				return false;
-			}
+            if (!isValid(jwt, secret)) {
+                return null
+            }
 
-			return true;
-		}
 
-		public static Map<String, Object> payloadOrNull(String jwt, String secret) {
+            return Jwts
+                .parser()
+                .verifyWith(secretKey)
+                .build()
+                .parse(jwt)
+                .payload as Map<String, Any>
 
-			SecretKey secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret.trim()));
 
-			if (isValid(jwt, secret)) {
-				return (Map<String, Object>)Jwts
-					.parser()
-					.verifyWith(secretKey)
-					.build()
-					.parse(jwt)
-					.getPayload();
-			}
+        }
 
-			return null;
-		}
+        @JvmStatic
+        fun isExpired(jwt: String?, secret: String): Boolean {
+            if (jwt.isNullOrBlank()) return true
 
-		public static boolean isExpired(String jwt, String secret) {
-			SecretKey secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret.trim()));
+            val secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret.trim { it <= ' ' }))
 
-			try {
-				Jwts
-					.parser()
-					.verifyWith(secretKey)
-					.build()
-					.parse(jwt);
-				return false;
-
-			} catch (ExpiredJwtException e) {
-				return true;
-
-			} catch (Exception e) {
-				return true;
-			}
-		}
-	}
+            try {
+                Jwts
+                    .parser()
+                    .verifyWith(secretKey)
+                    .build()
+                    .parse(jwt)
+                return false
+            } catch (e: ExpiredJwtException) {
+                return true
+            } catch (e: Exception) {
+                return true
+            }
+        }
+    }
 }

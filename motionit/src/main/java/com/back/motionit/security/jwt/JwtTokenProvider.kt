@@ -1,59 +1,50 @@
-package com.back.motionit.security.jwt;
+package com.back.motionit.security.jwt
 
-import java.util.Map;
-
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-
-import com.back.motionit.domain.user.entity.User;
-import com.back.motionit.standard.ut.JwtUtil;
-
-import lombok.Getter;
+import com.back.motionit.domain.user.entity.User
+import com.back.motionit.standard.ut.JwtUtil
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.stereotype.Component
 
 @Component
-@Getter
-public class JwtTokenProvider {
-	@Value("${jwt.secret}")
-	private String secret;
-	@Value("${jwt.access-token-expiration}")
-	private long accessTokenExpiration;
-	@Value("${jwt.refresh-token-expiration}")
-	private long refreshTokenExpiration;
+class JwtTokenProvider(
+    @Value("\${jwt.secret}")
+    private val secret: String,
 
-	public String generateAccessToken(User user) {
+    @Value("\${jwt.access-token-expiration}")
+    val accessTokenExpiration: Long,
 
-		return JwtUtil.Jwt.toString(
-			secret,
-			accessTokenExpiration,
-			Map.of("id", user.getId(), "nickname", user.getNickname())
-		);
-	}
+    @Value("\${jwt.refresh-token-expiration}")
+    private val refreshTokenExpiration: Long
+) {
 
-	public String generateRefreshToken(User user) {
+    fun generateAccessToken(user: User): String {
+        return JwtUtil.Jwt.toString(
+            secret,
+            accessTokenExpiration,
+            java.util.Map.of<String, Any?>("id", user.id, "nickname", user.nickname)
+        )
+    }
 
-		return JwtUtil.Jwt.toString(
-			secret,
-			refreshTokenExpiration,
-			Map.of("id", user.getId(), "nickname", user.getNickname())
-		);
-	}
+    fun generateRefreshToken(user: User): String {
+        return JwtUtil.Jwt.toString(
+            secret,
+            refreshTokenExpiration,
+            java.util.Map.of<String, Any?>("id", user.id, "nickname", user.nickname)
+        )
+    }
 
-	public Map<String, Object> payloadOrNull(String jwt) {
-		Map<String, Object> payload = JwtUtil.Jwt.payloadOrNull(jwt, secret);
+    fun payloadOrNull(jwt: String?): Map<String, Any?>? {
+        val payload = JwtUtil.Jwt.payloadOrNull(jwt, secret) ?: return null
 
-		if (payload == null) {
-			return null;
-		}
+        val idNo = payload["id"] as Number?
+        val id = idNo!!.toLong()
 
-		Number idNo = (Number)payload.get("id");
-		long id = idNo.longValue();
+        val nickname = payload["nickname"] as String?
 
-		String nickname = (String)payload.get("nickname");
+        return java.util.Map.of<String, Any?>("id", id, "nickname", nickname)
+    }
 
-		return Map.of("id", id, "nickname", nickname);
-	}
-
-	public boolean isExpired(String jwt) {
-		return JwtUtil.Jwt.isExpired(jwt, secret);
-	}
+    fun isExpired(jwt: String?): Boolean {
+        return JwtUtil.Jwt.isExpired(jwt, secret)
+    }
 }

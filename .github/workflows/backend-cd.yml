@@ -6,10 +6,14 @@ on:
     paths:
       - "motionit/**"
       - ".github/workflows/backend-cd.yml"
-  workflow_dispatch: # 수동 트리거 허용
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -61,11 +65,11 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "motionit/scripts/deploy.sh"
+          source: "motionit/scripts/deploy-blue-green.sh"
           target: "/home/ubuntu"
           strip_components: 2
 
-      - name: Deploy to EC2
+      - name: Deploy to EC2 (Blue-Green)
         uses: appleboy/ssh-action@v1.0.3
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -87,13 +91,11 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          command_timeout: 5m
           envs: DATABASE_URL,DB_USERNAME,DB_PASSWORD,AWS_ACCESS_KEY,AWS_SECRET_KEY,AWS_S3_BUCKET_NAME,AWS_CLOUDFRONT_DOMAIN,AWS_CLOUDFRONT_KEY_ID,AWS_CLOUDFRONT_PRIVATE_KEY_PATH,JWT_SECRET,JWT_ACCESS_TOKEN_EXPIRATION,JWT_REFRESH_TOKEN_EXPIRATION,OPENAI_API_KEY,YOUTUBE_API_KEY,KAKAO_CLIENT_ID
           script: |
             cd /home/ubuntu
-            chmod +x deploy.sh
-
-            # 환경변수를 export하여 deploy.sh에서 사용 가능하게 함
+            chmod +x deploy-blue-green.sh
+            
             export DATABASE_URL="${DATABASE_URL}"
             export DB_USERNAME="${DB_USERNAME}"
             export DB_PASSWORD="${DB_PASSWORD}"
@@ -109,18 +111,37 @@ jobs:
             export OPENAI_API_KEY="${OPENAI_API_KEY}"
             export YOUTUBE_API_KEY="${YOUTUBE_API_KEY}"
             export KAKAO_CLIENT_ID="${KAKAO_CLIENT_ID}"
-
-            ./deploy.sh
+            
+            ./deploy-blue-green.sh
 
       - name: Deployment Success
         if: success()
         run: |
-          echo "🚀 Deployment completed successfully!"
-          echo "Server: http://52.78.181.248:8080"
-          echo "Health: http://52.78.181.248:8080/actuator/health"
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          echo "================================="
+          echo "🚀 Deployment Completed!"
+          echo "================================="
+          echo "Server: http://52.78.181.248"
+          echo "Health: http://52.78.181.248/actuator/health"
+          echo "Image: minibrb/motionit-backend:${TIMESTAMP}-${SHORT_SHA}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Actor: ${{ github.actor }}"
+          echo "================================="
 
       - name: Deployment Failed
         if: failure()
         run: |
-          echo "❌ Deployment failed. Check the logs above for details."
+          echo "================================="
+          echo "❌ Deployment Failed"
+          echo "================================="
+          echo "Commit: ${{ github.sha }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Actor: ${{ github.actor }}"
+          echo ""
+          echo "To rollback, SSH to EC2 and run:"
+          echo "  cd /home/ubuntu"
+          echo "  ./rollback.sh <previous-tag>"
+          echo "================================="
           exit 1

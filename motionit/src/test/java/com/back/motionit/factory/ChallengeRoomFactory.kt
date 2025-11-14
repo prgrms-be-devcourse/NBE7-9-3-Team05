@@ -1,44 +1,36 @@
-package com.back.motionit.factory;
+package com.back.motionit.factory
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
+import com.back.motionit.domain.challenge.room.entity.ChallengeRoom
+import com.back.motionit.domain.challenge.video.entity.OpenStatus
+import com.back.motionit.domain.user.entity.User
+import java.time.LocalDateTime
 
-import com.back.motionit.domain.challenge.room.entity.ChallengeRoom;
-import com.back.motionit.domain.challenge.video.entity.OpenStatus;
-import com.back.motionit.domain.user.entity.User;
+object ChallengeRoomFactory : BaseFactory() {
+    fun fakeChallengeRoom(user: User, capacity: Int = faker.number().numberBetween(2, 100)): ChallengeRoom {
+        val now = LocalDateTime.now()
+        val startOffsetDays = faker.number().numberBetween(0, 7) // 오늘~7일 내 시작
+        val durationDays = faker.number().numberBetween(7, 30) // 1~4주 진행
 
-public final class ChallengeRoomFactory extends BaseFactory {
-	// public 생성자 막기, 불필요 객체 생성 방지
-	// 예: new ChallengeRoomFactory().fakeChallengeRoom(user);
-	private ChallengeRoomFactory() {
-	}
+        val start = now.plusDays(startOffsetDays.toLong())
+        val end = start.plusDays(durationDays.toLong())
 
-	public static ChallengeRoom fakeChallengeRoom(User user) {
-		return fakeChallengeRoom(user, faker.number().numberBetween(2, 100));
-	}
+        return buildRoom(user, capacity, start, end)
+    }
 
-	public static ChallengeRoom fakeChallengeRoom(User user, int capacity) {
-		LocalDateTime now = LocalDateTime.now();
-		int startOffsetDays = faker.number().numberBetween(0, 7);   // 오늘~7일 내 시작
-		int durationDays = faker.number().numberBetween(7, 30);     // 1~4주 진행
-
-		LocalDateTime start = now.plusDays(startOffsetDays);
-		LocalDateTime end = start.plusDays(durationDays);
-
-		return buildRoom(user, capacity, start, end);
-	}
-
-	private static ChallengeRoom buildRoom(User user, int capacity, LocalDateTime start, LocalDateTime end) {
-		return new ChallengeRoom(
-			user,
-			faker.lorem().sentence(3, 5),          // title
-			faker.lorem().paragraph(),             // description
-			capacity,
-			faker.options().option(OpenStatus.class),
-			start,
-			end,
-			faker.internet().url(),
-			null
-		);
-	}
+    private fun buildRoom(
+        user: User,
+        capacity: Int,
+        start: LocalDateTime,
+        end: LocalDateTime
+    ): ChallengeRoom = ChallengeRoom(
+        user,
+        faker.lorem().sentence(3, 5),  // title
+        faker.lorem().paragraph(),  // description
+        capacity,
+        faker.options().option(OpenStatus::class.java),
+        start,
+        end,
+        faker.internet().url(),
+        null
+    )
 }
