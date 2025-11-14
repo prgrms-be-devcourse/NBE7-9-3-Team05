@@ -88,4 +88,8 @@ public class ChallengeRoom extends BaseEntity {
 		LocalDate end = this.challengeEndDate.toLocalDate();
 		return ChronoUnit.DAYS.between(today, end);
 	}
+
+	public Integer getCapacity() {
+		return capacity;
+	}
 }
