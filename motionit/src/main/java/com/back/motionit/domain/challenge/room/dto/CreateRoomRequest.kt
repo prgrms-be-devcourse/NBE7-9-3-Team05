@@ -1,31 +1,31 @@
-package com.back.motionit.domain.challenge.room.dto;
+package com.back.motionit.domain.challenge.room.dto
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.Size
 
-public record CreateRoomRequest(
-	@NotBlank(message = "제목은 필수입니다.")
-	@Size(min = 2, max = 30, message = "제목은 30자 이내")
-	String title,
+@JvmRecord
+data class CreateRoomRequest(
+	@field:NotBlank(message = "제목은 필수입니다.")
+	@field:Size(min = 2, max = 30, message = "제목은 30자 이내")
+	val title: String,
 
-	@NotBlank
-	@Size(min = 2, max = 100, message = "설명은 100자 이내")
-	String description,
+	@field:NotBlank
+	@field:Size(min = 2, max = 100, message = "설명은 100자 이내")
+	val description: String,
 
-	@NotNull
-	Integer capacity,
+	@field:NotNull
+	val capacity: Int,
 
-	@NotNull
-	Integer duration,
+	@field:NotNull
+	val duration: Int,
 
-	@NotBlank
-	String videoUrl,
+	@field:NotBlank
+	val videoUrl: String,
 
-	@NotBlank
-	String imageFileName,
+	@field:NotBlank
+	val imageFileName: String,
 
-	@NotBlank
-	String contentType
-) {
-}
+	@field:NotBlank
+	val contentType: String
+)

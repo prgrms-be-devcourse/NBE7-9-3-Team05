@@ -1,240 +1,230 @@
-package com.back.motionit.domain.challenge.room.service;
+package com.back.motionit.domain.challenge.room.service
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import com.back.motionit.domain.challenge.participant.entity.ChallengeParticipant
+import com.back.motionit.domain.challenge.participant.entity.ChallengeParticipantRole
+import com.back.motionit.domain.challenge.participant.repository.ChallengeParticipantRepository
+import com.back.motionit.domain.challenge.participant.service.ChallengeParticipantService
+import com.back.motionit.domain.challenge.room.dto.*
+import com.back.motionit.domain.challenge.room.entity.ChallengeRoom
+import com.back.motionit.domain.challenge.room.repository.ChallengeRoomRepository
+import com.back.motionit.domain.challenge.room.repository.ChallengeRoomSummaryRepository
+import com.back.motionit.domain.challenge.video.entity.ChallengeVideo
+import com.back.motionit.domain.challenge.video.entity.OpenStatus
+import com.back.motionit.domain.challenge.video.service.ChallengeVideoService
+import com.back.motionit.domain.user.entity.User
+import com.back.motionit.domain.user.repository.UserRepository
+import com.back.motionit.global.enums.ChallengeStatus
+import com.back.motionit.global.enums.EventEnums
+import com.back.motionit.global.error.code.ChallengeRoomErrorCode
+import com.back.motionit.global.error.exception.BusinessException
+import com.back.motionit.global.event.EventPublisher
+import com.back.motionit.global.service.AwsS3Service
 
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-
-import com.back.motionit.domain.challenge.participant.entity.ChallengeParticipant;
-import com.back.motionit.domain.challenge.participant.entity.ChallengeParticipantRole;
-import com.back.motionit.domain.challenge.participant.repository.ChallengeParticipantRepository;
-import com.back.motionit.domain.challenge.participant.service.ChallengeParticipantService;
-import com.back.motionit.domain.challenge.room.dto.ChallengeParticipantDto;
-import com.back.motionit.domain.challenge.room.dto.ChallengeVideoDto;
-import com.back.motionit.domain.challenge.room.dto.CreateRoomRequest;
-import com.back.motionit.domain.challenge.room.dto.CreateRoomResponse;
-import com.back.motionit.domain.challenge.room.dto.GetRoomResponse;
-import com.back.motionit.domain.challenge.room.dto.GetRoomSummary;
-import com.back.motionit.domain.challenge.room.dto.GetRoomsResponse;
-import com.back.motionit.domain.challenge.room.dto.RoomEventDto;
-import com.back.motionit.domain.challenge.room.entity.ChallengeRoom;
-import com.back.motionit.domain.challenge.room.repository.ChallengeRoomRepository;
-import com.back.motionit.domain.challenge.room.repository.ChallengeRoomSummaryRepository;
-import com.back.motionit.domain.challenge.video.entity.ChallengeVideo;
-import com.back.motionit.domain.challenge.video.entity.OpenStatus;
-import com.back.motionit.domain.challenge.video.service.ChallengeVideoService;
-import com.back.motionit.domain.user.entity.User;
-import com.back.motionit.domain.user.repository.UserRepository;
-import com.back.motionit.global.enums.ChallengeStatus;
-import com.back.motionit.global.enums.EventEnums;
-import com.back.motionit.global.error.code.ChallengeRoomErrorCode;
-import com.back.motionit.global.error.exception.BusinessException;
-import com.back.motionit.global.event.EventPublisher;
-import com.back.motionit.global.service.AwsS3Service;
-
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Sort
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+import org.springframework.util.StringUtils
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
 
 @Service
-@RequiredArgsConstructor
-public class ChallengeRoomService {
+class ChallengeRoomService(
+    private val challengeRoomRepository: ChallengeRoomRepository,
+    private val challengeParticipantService: ChallengeParticipantService,
+    private val s3Provider: ObjectProvider<AwsS3Service>,
+    private val eventPublisher: EventPublisher,
+    private val userRepository: UserRepository,
+    private val participantRepository: ChallengeParticipantRepository,
+    private val participantService: ChallengeParticipantService,
+    private val summaryRepository: ChallengeRoomSummaryRepository,
+    private val videoService: ChallengeVideoService,
+) {
 
-	private final ChallengeRoomRepository challengeRoomRepository;
-	private final ChallengeParticipantService challengeParticipantService;
-	private final ObjectProvider<AwsS3Service> s3Provider;
-	private final EventPublisher eventPublisher;
-	private final UserRepository userRepository;
-	private final ChallengeParticipantRepository participantRepository;
-	private final ChallengeParticipantService participantService;
-	private final ChallengeRoomSummaryRepository summaryRepository;
-	private final ChallengeVideoService videoService;
+    private fun s3(): AwsS3Service? {
+        return s3Provider.getIfAvailable()
+    }
 
-	private AwsS3Service s3() {
-		return s3Provider.getIfAvailable();
-	}
+    @Transactional
+    fun createRoom(input: CreateRoomRequest, user: User?): CreateRoomResponse {
+        if (user == null) {
+            throw BusinessException(ChallengeRoomErrorCode.NOT_FOUND_USER)
+        }
 
-	@Transactional
-	public CreateRoomResponse createRoom(CreateRoomRequest input, User user) {
-		if (user == null) {
-			throw new BusinessException(ChallengeRoomErrorCode.NOT_FOUND_USER);
-		}
+        val userId = user.id!!
 
-		Long userId = user.getId();
+        val host = userRepository.findById(userId)
+            .orElseThrow { BusinessException(ChallengeRoomErrorCode.NOT_FOUND_USER) }
 
-		User host = userRepository.findById(userId)
-			.orElseThrow(() -> new BusinessException(ChallengeRoomErrorCode.NOT_FOUND_USER));
+        var objectKey = ""
+        var uploadUrl = ""
 
-		String objectKey = "";
-		String uploadUrl = "";
+        val s3 = s3()
+        if (s3 != null) {
+            objectKey = s3.buildObjectKey(input.imageFileName) ?: ""
+        }
 
-		AwsS3Service s3 = s3();
-		if (s3 != null) {
-			objectKey = s3.buildObjectKey(input.imageFileName());
-		}
+        val room = mapToRoomObject(input, host, objectKey)
+        val createdRoom = challengeRoomRepository.save(room)
 
-		ChallengeRoom room = mapToRoomObject(input, host, objectKey);
-		ChallengeRoom createdRoom = challengeRoomRepository.save(room);
+        // 방장 자동 참가 처리, 여기서 실패시 방 생성도 롤백 처리됨
+        autoJoinAsHost(createdRoom)
+        videoService.uploadChallengeVideo(userId, createdRoom.id, input.videoUrl)
 
-		// 방장 자동 참가 처리, 여기서 실패시 방 생성도 롤백 처리됨
-		autoJoinAsHost(createdRoom);
-		videoService.uploadChallengeVideo(userId, createdRoom.getId(), input.videoUrl());
+        uploadUrl = if (s3 != null && StringUtils.hasText(objectKey)) {
+            s3.createUploadUrl(objectKey, input.contentType)
+        } else {
+            ""
+        }
 
-		if (s3 != null && StringUtils.hasText(objectKey)) {
-			uploadUrl = s3.createUploadUrl(objectKey, input.contentType());
-		} else {
-			uploadUrl = "";
-		}
+        val response = mapToCreateRoomResponse(createdRoom, uploadUrl)
+        eventPublisher.publishEvent(RoomEventDto(EventEnums.ROOM))
 
-		CreateRoomResponse response = mapToCreateRoomResponse(createdRoom, uploadUrl);
-		eventPublisher.publishEvent(new RoomEventDto(EventEnums.ROOM));
+        return response
+    }
 
-		return response;
-	}
+    @Transactional(readOnly = true)
+    fun getRooms(user: User?, page: Int, size: Int): GetRoomsResponse {
+        val pageable: Pageable = PageRequest.of(
+            page,
+            size,
+            Sort.by(Sort.Direction.DESC, "createDate")
+        )
 
-	@Transactional(readOnly = true)
-	public GetRoomsResponse getRooms(User user, int page, int size) {
-		Pageable pageable = PageRequest.of(
-			page,
-			size,
-			Sort.by(Sort.Direction.DESC, "createDate")
-		);
+        val pageResult: Page<ChallengeRoom> = summaryRepository.fetchOpenRooms(pageable)
+        val rooms: List<ChallengeRoom> = pageResult.content
 
-		Page<ChallengeRoom> pageResult = summaryRepository.fetchOpenRooms(pageable);
-		List<ChallengeRoom> rooms = pageResult.getContent();
+        if (rooms.isEmpty()) {
+            return GetRoomsResponse(countOpenRooms(), listOf())
+        }
 
-		if (rooms.isEmpty()) {
-			return new GetRoomsResponse(countOpenRooms(), List.of());
-		}
+        val roomIds = rooms.map { it.id }
+        val joiningSet: Set<Long> =
+            if ((user == null)) {
+                emptySet()
+            } else {
+                participantRepository
+                    .findJoiningRoomIdsByUserAndRoomIds(user.id, roomIds)
+                    .toSet()
+            }
 
-		List<Long> roomIds = rooms.stream().map(ChallengeRoom::getId).toList();
-		Set<Long> joiningSet = (user == null) ? Set.<Long>of()
-			: Set.copyOf(participantRepository.findJoiningRoomIdsByUserAndRoomIds(user.getId(), roomIds));
+        val raw = participantRepository.countActiveParticipantsByRoomIds(roomIds)
+        val countMap: MutableMap<Long, Int> = HashMap(raw.size)
 
-		List<Object[]> raw = participantRepository.countActiveParticipantsByRoomIds(roomIds);
-		Map<Long, Integer> countMap = new HashMap<Long, Integer>(raw.size());
+        for (row in raw) {
+            val roomId = row[0] as Long
+            val count = row[1] as Long
+            countMap[roomId] = count.toInt()
+        }
 
-		for (Object[] row : raw) {
-			Long roomId = (Long)row[0];
-			Long count = (Long)row[1];
-			countMap.put(roomId, count.intValue());
-		}
+        val summaries = rooms.map {  room: ChallengeRoom ->
+            val dDay = ChronoUnit.DAYS.between(LocalDate.now(), room.challengeEndDate.toLocalDate())
 
-		var summaries = rooms.stream().map(room -> new GetRoomSummary(
-			room.getId(),
-			room.getTitle(),
-			room.getDescription(),
-			room.getCapacity(),
-			(int)ChronoUnit.DAYS.between(LocalDate.now(), room.getChallengeEndDate().toLocalDate()),
-			room.getRoomImage(),
-			(user != null && joiningSet.contains(room.getId())) ? ChallengeStatus.JOINING : ChallengeStatus.JOINABLE,
-			countMap.getOrDefault(room.getId(), 0)
-		)).toList();
+            GetRoomSummary(
+                id = room.id,
+                title = room.title,
+                description = room.description,
+                capacity = room.capacity,
+                dDay = dDay.toInt(),
+                roomImage = room.roomImage,
+                status = if (user != null && room.id != null && joiningSet.contains(room.id))
+                    ChallengeStatus.JOINING
+                else
+                    ChallengeStatus.JOINABLE,
+                current = countMap[room.id] ?: 0
+            )
+        }
 
-		return new GetRoomsResponse((int)pageResult.getTotalElements(), summaries);
-	}
+        return GetRoomsResponse(pageResult.totalElements.toInt(), summaries)
+    }
 
-	@Transactional
-	public GetRoomResponse getRoom(Long roomId) {
-		ChallengeRoom room = challengeRoomRepository.findWithVideosById(roomId).orElseThrow(
-			() -> new BusinessException(ChallengeRoomErrorCode.NOT_FOUND_ROOM)
-		);
+    @Transactional
+    fun getRoom(roomId: Long): GetRoomResponse {
+        val room = challengeRoomRepository.findWithVideosById(roomId)
+            .orElseThrow { BusinessException(ChallengeRoomErrorCode.NOT_FOUND_ROOM) }
 
-		return mapToGetRoomResponse(room);
-	}
+        return mapToGetRoomResponse(room)
+    }
 
-	@Transactional
-	public void deleteRoom(Long roomId, User user) {
-		if (!participantService.checkParticipantIsRoomHost(user.getId(), roomId)) {
-			throw new BusinessException(ChallengeRoomErrorCode.INVALID_AUTH_USER);
-		}
+    @Transactional
+    fun deleteRoom(roomId: Long, user: User) {
+        if (!participantService.checkParticipantIsRoomHost(user.id, roomId)) {
+            throw BusinessException(ChallengeRoomErrorCode.INVALID_AUTH_USER)
+        }
 
-		int deleted = challengeRoomRepository.softDeleteById(roomId);
+        val deleted = challengeRoomRepository.softDeleteById(roomId)
 
-		if (deleted == 0) {
-			throw new BusinessException(ChallengeRoomErrorCode.FAILED_DELETE_ROOM);
-		}
+        if (deleted == 0) {
+            throw BusinessException(ChallengeRoomErrorCode.FAILED_DELETE_ROOM)
+        }
 
-		eventPublisher.publishEvent(new RoomEventDto(EventEnums.ROOM));
-	}
+        eventPublisher.publishEvent(RoomEventDto(EventEnums.ROOM))
+    }
 
-	public ChallengeRoom mapToRoomObject(CreateRoomRequest input, User user, String objectKey) {
-		LocalDateTime now = LocalDateTime.now();
-		int durationDays = input.duration();
+    fun mapToRoomObject(input: CreateRoomRequest, user: User, objectKey: String): ChallengeRoom {
+        val now = LocalDateTime.now()
+        val durationDays = input.duration
 
-		LocalDateTime start = now;
-		LocalDateTime end = start.plusDays(durationDays);
+        val start = now
+        val end = start.plusDays(durationDays.toLong())
 
-		List<ChallengeVideo> videos = new ArrayList<>();
-		List<ChallengeParticipant> participants = new ArrayList<>();
+        return ChallengeRoom(
+            user,
+            input.title,
+            input.description,
+            input.capacity,
+            OpenStatus.OPEN,
+            start,
+            end,
+            objectKey,
+            null,
+        )
+    }
 
-		return new ChallengeRoom(
-			user,
-			input.title(),
-			input.description(),
-			input.capacity(),
-			OpenStatus.OPEN,
-			start,
-			end,
-			objectKey,
-			null,
-			videos,
-			participants
-		);
-	}
+    private fun mapToCreateRoomResponse(room: ChallengeRoom, uploadUrl: String): CreateRoomResponse {
+        return CreateRoomResponse(
+            room.id,
+            room.title,
+            room.description,
+            room.capacity,
+            room.openStatus,
+            room.challengeStartDate,
+            room.challengeEndDate,
+            room.roomImage,
+            room.getChallengeVideoList(),
+            uploadUrl
+        )
+    }
 
-	private CreateRoomResponse mapToCreateRoomResponse(ChallengeRoom room, String uploadUrl) {
-		return new CreateRoomResponse(
-			room.getId(),
-			room.getTitle(),
-			room.getDescription(),
-			room.getCapacity(),
-			room.getOpenStatus(),
-			room.getChallengeStartDate(),
-			room.getChallengeEndDate(),
-			room.getRoomImage(),
-			room.getChallengeVideoList(),
-			uploadUrl
-		);
-	}
+    private fun mapToGetRoomResponse(room: ChallengeRoom): GetRoomResponse {
+        val videos: List<ChallengeVideoDto> = room
+            .getChallengeVideoList()
+            .map { video: ChallengeVideo -> ChallengeVideoDto(video) }
 
-	private GetRoomResponse mapToGetRoomResponse(ChallengeRoom room) {
-		List<ChallengeVideoDto> videos = room.getChallengeVideoList().stream()
-			.map(ChallengeVideoDto::new)
-			.toList();
+        val participants = participantRepository
+            .findAllByRoomIdWithUser(room.id)
+            .map { participant: ChallengeParticipant -> ChallengeParticipantDto(participant) }
 
-		List<ChallengeParticipantDto> participants = participantRepository.findAllByRoomIdWithUser(room.getId())
-			.stream()
-			.map(ChallengeParticipantDto::new)
-			.toList();
+        return GetRoomResponse(
+            room,
+            videos,
+            participants
+        )
+    }
 
-		return new GetRoomResponse(
-			room,
-			videos,
-			participants
-		);
-	}
+    private fun autoJoinAsHost(createdRoom: ChallengeRoom) {
+        challengeParticipantService.joinChallengeRoom(
+            createdRoom.user.id,
+            createdRoom.id,
+            ChallengeParticipantRole.HOST
+        )
+    }
 
-	private void autoJoinAsHost(ChallengeRoom createdRoom) {
-		challengeParticipantService.joinChallengeRoom(
-			createdRoom.getUser().getId(),
-			createdRoom.getId(),
-			ChallengeParticipantRole.HOST
-		);
-	}
-
-	public int countOpenRooms() {
-		return summaryRepository.countOpenRooms();
-	}
+    fun countOpenRooms(): Int {
+        return summaryRepository.countOpenRooms()
+    }
 }
