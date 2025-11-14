@@ -1,47 +1,48 @@
-package com.back.motionit.domain.challenge.mission.dto;
+package com.back.motionit.domain.challenge.mission.dto
 
-import java.time.LocalDate;
+import com.back.motionit.domain.challenge.mission.entity.ChallengeMissionStatus
+import com.back.motionit.domain.challenge.participant.entity.ChallengeParticipantRole
+import java.time.LocalDate
 
-import org.springframework.lang.Nullable;
-
-import com.back.motionit.domain.challenge.mission.entity.ChallengeMissionStatus;
-import com.back.motionit.domain.challenge.participant.entity.ChallengeParticipantRole;
-
-public record ChallengeMissionStatusResponse(
-	Long participantId,
-	String nickname,
-	String userProfile,
-	LocalDate missionDate,
-	boolean completed,
-	ChallengeParticipantRole isHost,
-	@Nullable String aiSummary
+data class ChallengeMissionStatusResponse(
+    val participantId: Long?,   // TODO: 현재 baseEntity가 호환성문제로 Long? 타입임, 추후 Long으로 변경예정
+    val nickname: String,
+    val userProfile: String?,
+    val missionDate: LocalDate,
+    val completed: Boolean,
+    val role: ChallengeParticipantRole,
+    val aiSummary: String?
 ) {
-	public static ChallengeMissionStatusResponse from(ChallengeMissionStatus status) {
-		var participant = status.getParticipant();
-		var user = participant.getUser(); // TODO: 지연로딩으로 N+1 발생가능지점, 쿼리개선 필요
+    companion object {
+        @JvmStatic
+        fun from(status: ChallengeMissionStatus): ChallengeMissionStatusResponse {
+            val participant = status.participant
+            val user = participant.user // TODO: 지연로딩으로 N+1 발생가능지점, 쿼리개선 필요
 
-		return new ChallengeMissionStatusResponse(
-			status.getParticipant().getId(),
-			user.getNickname(),
-			user.getUserProfile(),
-			status.getMissionDate(),
-			status.getCompleted(),
-			status.getParticipant().getRole(),
-			status.getAiMessage()
-		);
-	}
+            return ChallengeMissionStatusResponse(
+                participantId = participant.id,
+                nickname = user.nickname,
+                userProfile = user.userProfile,
+                missionDate = status.missionDate,
+                completed = status.completed,
+                role = participant.role,
+                aiSummary = status.aiMessage
+            )
+        }
 
-	public static ChallengeMissionStatusResponse from(ChallengeMissionStatus status, String aiSummary) {
-		var participant = status.getParticipant();
-		var user = participant.getUser();
-		return new ChallengeMissionStatusResponse(
-			status.getParticipant().getId(),
-			user.getNickname(),
-			user.getUserProfile(),
-			status.getMissionDate(),
-			status.getCompleted(),
-			status.getParticipant().getRole(),
-			aiSummary
-		);
-	}
+        @JvmStatic
+        fun from(status: ChallengeMissionStatus, aiSummary: String?): ChallengeMissionStatusResponse {
+            val participant = status.participant
+            val user = participant.user
+            return ChallengeMissionStatusResponse(
+                participantId = participant.id,
+                nickname = user.nickname,
+                userProfile = user.userProfile,
+                missionDate = status.missionDate,
+                completed = status.completed,
+                role = participant.role,
+                aiSummary = aiSummary
+            )
+        }
+    }
 }

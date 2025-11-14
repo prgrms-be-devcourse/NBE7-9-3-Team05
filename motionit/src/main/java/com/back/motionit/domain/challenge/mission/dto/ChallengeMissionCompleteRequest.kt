@@ -1,8 +1,8 @@
-package com.back.motionit.domain.challenge.mission.dto;
+package com.back.motionit.domain.challenge.mission.dto
 
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull
 
-public record ChallengeMissionCompleteRequest(
-	@NotNull Long videoId
-) {
-}
+data class ChallengeMissionCompleteRequest(
+    @field:NotNull
+    val videoId: Long
+)
