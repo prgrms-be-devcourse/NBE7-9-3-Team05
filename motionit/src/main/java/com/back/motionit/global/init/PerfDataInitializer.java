@@ -13,6 +13,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.back.motionit.domain.challenge.comment.entity.Comment;
 import com.back.motionit.domain.challenge.comment.repository.CommentRepository;
@@ -46,6 +47,7 @@ public class PerfDataInitializer {
 	private final ChallengeVideoRepository challengeVideoRepository;
 	private final ChallengeMissionStatusRepository challengeMissionStatusRepository;
 	private final CommentRepository commentRepository;
+	private final PasswordEncoder passwordEncoder;
 
 	@Bean
 	public ApplicationRunner initPerfDummyData() {
@@ -73,8 +75,8 @@ public class PerfDataInitializer {
 					.kakaoId(9100L + i)
 					.email("perf_user" + i + "@example.com")
 					.nickname("PerfUser" + i)
-					.password("pass" + i)
-					.loginType(LoginType.KAKAO)
+					.password(passwordEncoder.encode("pass" + i))
+					.loginType(LoginType.LOCAL)
 					.userProfile("https://picsum.photos/100?perf" + (i + 1))
 					.build()))
 				.toList();

@@ -26,6 +26,9 @@ class PerformanceMonitoringAspect(
         execution(* com.back.motionit.domain.challenge..controller..*(..)) ||
         execution(* com.back.motionit.domain.challenge..service..*(..)) ||
         execution(* com.back.motionit.domain.challenge..repository..*(..))
+        execution(* com.back.motionit.domain.auth.local..controller..*(..)) ||
+        execution(* com.back.motionit.domain.auth.local..service..*(..)) ||
+        execution(* com.back.motionit.domain.user..repository..*(..))
         """
     )
     fun measureExecutionTime(joinPoint: ProceedingJoinPoint): Any? {
