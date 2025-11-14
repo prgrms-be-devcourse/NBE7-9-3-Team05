@@ -443,6 +443,21 @@ jobs:
                 body
               });
             }
+      - name: Extract commit/PR title (first line only)
+        if: always()
+        id: title
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            TITLE="${{ github.event.pull_request.title }}"
+          else
+            TITLE="${{ github.event.head_commit.message }}"
+          fi
+          # 첫 번째 줄만 추출하고 줄바꿈 제거, 특수문자 이스케이프
+          FIRST_LINE=$(echo "$TITLE" | head -n 1 | tr -d '\n\r' | sed 's/\\/\\\\/g; s/"/\\"/g')
+          # 최대 100자로 제한 (너무 긴 경우 대비)
+          FIRST_LINE=$(echo "$FIRST_LINE" | cut -c1-100)
+          echo "first_line=$FIRST_LINE" >> $GITHUB_OUTPUT
+
       - name: Parse test results
         if: always()
         id: test_results
@@ -499,7 +514,7 @@ jobs:
                   "fields": [
                     {
                       "type": "mrkdwn",
-                      "text": "*PR*\n#${{ github.event.pull_request.number }} - ${{ github.event.pull_request.title }}"
+                      "text": "*PR*\n#${{ github.event.pull_request.number }} - ${{ steps.title.outputs.first_line }}"
                     },
                     {
                       "type": "mrkdwn",
@@ -565,7 +580,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "*Commit*\n${{ github.event.head_commit.message }}"
+                    "text": "*Commit*\n${{ steps.title.outputs.first_line }}"
                   }
                 },
                 {
@@ -602,7 +617,7 @@ jobs:
                   "fields": [
                     {
                       "type": "mrkdwn",
-                      "text": "*PR*\n#${{ github.event.pull_request.number }} - ${{ github.event.pull_request.title || github.event.head_commit.message }}"
+                      "text": "*PR*\n#${{ github.event.pull_request.number || 'N/A' }}"
                     },
                     {
                       "type": "mrkdwn",
@@ -613,6 +628,13 @@ jobs:
                       "text": "*Tests*\n✅ ${{ steps.test_results.outputs.passed }} passed\n❌ ${{ steps.test_results.outputs.failed }} failed"
                     }
                   ]
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Title*\n${{ steps.title.outputs.first_line }}"
+                  }
                 },
                 {
                   "type": "section",

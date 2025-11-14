@@ -56,7 +56,6 @@ jobs:
           echo "  - ${IMAGE_NAME}:${TIMESTAMP}-${SHORT_SHA}"
 
       - name: Copy deploy script to EC2
-        working-directory: .
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
