@@ -87,6 +87,7 @@ echo -e "\n${YELLOW}[4/7] Starting ${NEW_COLOR} container...${NC}"
 docker run -d \
   --name ${NEW_CONTAINER} \
   --restart unless-stopped \
+  --add-host=host.docker.internal:host-gateway \
   -p ${NEW_PORT}:8080 \
   -e SPRING_PROFILES_ACTIVE=prod \
   -e DATABASE_URL="${DATABASE_URL}" \
