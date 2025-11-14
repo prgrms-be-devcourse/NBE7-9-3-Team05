@@ -1,102 +1,98 @@
-package com.back.motionit.domain.auth.local.service;
+package com.back.motionit.domain.auth.local.service
 
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.back.motionit.domain.auth.dto.AuthResponse;
-import com.back.motionit.domain.auth.dto.LoginRequest;
-import com.back.motionit.domain.auth.dto.SignupRequest;
-import com.back.motionit.domain.auth.service.AuthTokenService;
-import com.back.motionit.domain.user.entity.LoginType;
-import com.back.motionit.domain.user.entity.User;
-import com.back.motionit.domain.user.repository.UserRepository;
-import com.back.motionit.global.constants.ProfileImageConstants;
-import com.back.motionit.global.error.code.AuthErrorCode;
-import com.back.motionit.global.error.exception.BusinessException;
-import com.back.motionit.global.request.RequestContext;
-import com.back.motionit.security.jwt.JwtTokenDto;
-
-import lombok.RequiredArgsConstructor;
+import com.back.motionit.domain.auth.dto.AuthResponse
+import com.back.motionit.domain.auth.dto.LoginRequest
+import com.back.motionit.domain.auth.dto.SignupRequest
+import com.back.motionit.domain.auth.service.AuthTokenService
+import com.back.motionit.domain.user.entity.LoginType
+import com.back.motionit.domain.user.entity.User
+import com.back.motionit.domain.user.entity.User.Companion.builder
+import com.back.motionit.domain.user.repository.UserRepository
+import com.back.motionit.global.constants.ProfileImageConstants
+import com.back.motionit.global.error.code.AuthErrorCode
+import com.back.motionit.global.error.exception.BusinessException
+import com.back.motionit.global.request.RequestContext
+import com.back.motionit.security.jwt.JwtTokenDto
+import org.springframework.security.crypto.password.PasswordEncoder
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 
 @Service
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class LocalAuthService {
+class LocalAuthService(
+    private val userRepository: UserRepository,
+    private val passwordEncoder: PasswordEncoder,
+    private val authTokenService: AuthTokenService,
+    private val requestContext: RequestContext
+) {
 
-	private final UserRepository userRepository;
-	private final PasswordEncoder passwordEncoder;
-	private final AuthTokenService authTokenService;
-	private final RequestContext requestContext;
+    @Transactional
+    fun signup(request: SignupRequest): AuthResponse {
+        if (userRepository.existsByEmail(request.email)) {
+            throw BusinessException(AuthErrorCode.EMAIL_DUPLICATED)
+        }
 
-	@Transactional
-	public AuthResponse signup(SignupRequest request) {
-		if (userRepository.existsByEmail(request.getEmail())) {
-			throw new BusinessException(AuthErrorCode.EMAIL_DUPLICATED);
-		}
+        if (userRepository.existsByNickname(request.nickname)) {
+            throw BusinessException(AuthErrorCode.NICKNAME_DUPLICATED)
+        }
 
-		if (userRepository.existsByNickname(request.getNickname())) {
-			throw new BusinessException(AuthErrorCode.NICKNAME_DUPLICATED);
-		}
+        val encodedPassword = passwordEncoder.encode(request.password)
 
-		String encodedPassword = passwordEncoder.encode(request.getPassword());
+        val user = builder()
+            .email(request.email)
+            .password(encodedPassword)
+            .nickname(request.nickname)
+            .loginType(LoginType.LOCAL)
+            .userProfile(ProfileImageConstants.DEFAULT_PROFILE_IMAGE)
+            .build()
 
-		User user = User.builder()
-			.email(request.getEmail())
-			.password(encodedPassword)
-			.nickname(request.getNickname())
-			.loginType(LoginType.LOCAL)
-			.userProfile(ProfileImageConstants.DEFAULT_PROFILE_IMAGE)
-			.build();
+        val savedUser = userRepository.save(user)
 
-		User savedUser = userRepository.save(user);
+        val tokens = authTokenService.generateTokens(savedUser)
 
-		JwtTokenDto tokens = authTokenService.generateTokens(savedUser);
+        return buildAuthResponse(savedUser, tokens)
+    }
 
-		return buildAuthResponse(savedUser, tokens);
-	}
+    @Transactional
+    fun login(request: LoginRequest): AuthResponse {
+        val user = userRepository.findByEmail(request.email)
+            .orElseThrow { BusinessException(AuthErrorCode.LOGIN_FAILED) }
 
-	@Transactional
-	public AuthResponse login(LoginRequest request) {
-		User user = userRepository.findByEmail(request.getEmail())
-			.orElseThrow(() -> new BusinessException(AuthErrorCode.LOGIN_FAILED));
+        if (!passwordEncoder.matches(request.password, user.password)) {
+            throw BusinessException(AuthErrorCode.LOGIN_FAILED)
+        }
 
-		if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-			throw new BusinessException(AuthErrorCode.LOGIN_FAILED);
-		}
+        val tokens = authTokenService.generateTokens(user)
 
-		JwtTokenDto tokens = authTokenService.generateTokens(user);
+        requestContext.setCookie("accessToken", tokens.accessToken)
+        requestContext.setCookie("refreshToken", tokens.refreshToken)
 
-		requestContext.setCookie("accessToken", tokens.getAccessToken());
-		requestContext.setCookie("refreshToken", tokens.getRefreshToken());
+        return buildAuthResponse(user, tokens)
+    }
 
-		return buildAuthResponse(user, tokens);
-	}
+    @Transactional
+    fun logout() {
+        val refreshToken = requestContext.getCookieValue("refreshToken", null)
+        if (refreshToken.isNullOrBlank()) {
+            throw BusinessException(AuthErrorCode.REFRESH_TOKEN_REQUIRED)
+        }
 
-	@Transactional
-	public void logout() {
+        val user = userRepository.findByRefreshToken(refreshToken)
+            .orElseThrow { BusinessException(AuthErrorCode.REFRESH_TOKEN_NOT_FOUND) }
 
-		String refreshToken = requestContext.getCookieValue("refreshToken", null);
-		if (refreshToken == null || refreshToken.isBlank()) {
-			throw new BusinessException(AuthErrorCode.REFRESH_TOKEN_REQUIRED);
-		}
+        authTokenService.removeRefreshToken(user.id)
 
-		User user = userRepository.findByRefreshToken(refreshToken)
-			.orElseThrow(() -> new BusinessException(AuthErrorCode.REFRESH_TOKEN_NOT_FOUND));
+        requestContext.deleteCookie("accessToken")
+        requestContext.deleteCookie("refreshToken")
+    }
 
-		authTokenService.removeRefreshToken(user.getId());
-
-		requestContext.deleteCookie("accessToken");
-		requestContext.deleteCookie("refreshToken");
-	}
-
-	private AuthResponse buildAuthResponse(User user, JwtTokenDto tokens) {
-		return AuthResponse.builder()
-			.userId(user.getId())
-			.email(user.getEmail())
-			.nickname(user.getNickname())
-			.accessToken(tokens.getAccessToken())
-			.refreshToken(tokens.getRefreshToken())
-			.build();
-	}
+    private fun buildAuthResponse(user: User, tokens: JwtTokenDto): AuthResponse {
+        return AuthResponse(
+            accessToken = tokens.accessToken,
+            refreshToken = tokens.refreshToken,
+            userId = user.id!!,
+            email = user.email,
+            nickname = user.nickname
+        )
+    }
 }

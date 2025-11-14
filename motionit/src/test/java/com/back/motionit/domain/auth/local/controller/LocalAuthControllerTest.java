@@ -46,13 +46,13 @@ public class LocalAuthControllerTest {
 	void signup_Success() throws Exception {
 		// given
 		SignupRequest request = new SignupRequest("test@email.com", "password123", "테스터");
-		AuthResponse response = AuthResponse.builder()
-			.accessToken("access.token")
-			.refreshToken("refresh.token")
-			.userId(1L)
-			.email("test@email.com")
-			.nickname("테스터")
-			.build();
+		AuthResponse response = new AuthResponse(
+			"access.token",
+			"refresh.token",
+			1L,
+			"test@email.com",
+			"테스터"
+		);
 
 		given(localAuthService.signup(any(SignupRequest.class))).willReturn(response);
 
@@ -72,13 +72,13 @@ public class LocalAuthControllerTest {
 	void login_Success() throws Exception {
 		// given
 		LoginRequest request = new LoginRequest("test@email.com", "password123");
-		AuthResponse response = AuthResponse.builder()
-			.accessToken("access.token")
-			.refreshToken("refresh.token")
-			.userId(1L)
-			.email("test@email.com")
-			.nickname("테스터")
-			.build();
+		AuthResponse response = new AuthResponse(
+			"access.token",
+			"refresh.token",
+			1L,
+			"test@email.com",
+			"테스터"
+		);
 
 		given(localAuthService.login(any(LoginRequest.class))).willReturn(response);
 

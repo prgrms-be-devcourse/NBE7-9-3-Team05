@@ -55,13 +55,7 @@ public class LocalAuthServiceTest {
 		given(userRepository.existsByNickname(anyString())).willReturn(false);
 		given(passwordEncoder.encode(anyString())).willReturn("encodedPassword");
 
-		User mockUser = User.builder()
-			.email("test@email.com")
-			.password("encodedPassword")
-			.nickname("테스터")
-			.loginType(LoginType.LOCAL)
-			.userProfile("default.png")
-			.build();
+		User mockUser = createMockUser();
 
 		given(userRepository.save(any(User.class))).willReturn(mockUser);
 
@@ -94,12 +88,8 @@ public class LocalAuthServiceTest {
 	@DisplayName("로그인 성공 시 쿠키 설정 및 AuthResponse 반환")
 	void login_Success() {
 		LoginRequest request = new LoginRequest("test@email.com", "password123");
-		User mockUser = User.builder()
-			.email("test@email.com")
-			.password("encodedPassword")
-			.nickname("테스터")
-			.loginType(LoginType.LOCAL)
-			.build();
+
+		User mockUser = createMockUser();
 
 		given(userRepository.findByEmail(request.getEmail())).willReturn(Optional.of(mockUser));
 		given(passwordEncoder.matches(anyString(), anyString())).willReturn(true);
@@ -138,5 +128,15 @@ public class LocalAuthServiceTest {
 
 		BusinessException ex = assertThrows(BusinessException.class, () -> localAuthService.logout());
 		assertEquals(AuthErrorCode.REFRESH_TOKEN_REQUIRED, ex.getErrorCode());
+	}
+
+	// Helper
+	private User createMockUser() {
+		User user = new User(1L, "테스터");
+		user.setEmail("test@email.com");
+		user.setPassword("encodedPassword");
+		user.setLoginType(LoginType.LOCAL);
+		user.setUserProfile("default.png");
+		return user;
 	}
 }
