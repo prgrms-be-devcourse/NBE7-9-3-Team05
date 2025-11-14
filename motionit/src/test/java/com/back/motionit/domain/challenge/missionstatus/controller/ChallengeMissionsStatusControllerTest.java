@@ -1,5 +1,6 @@
 package com.back.motionit.domain.challenge.missionstatus.controller;
 
+import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -118,8 +119,10 @@ public class ChallengeMissionsStatusControllerTest extends BaseIntegrationTest {
 	@DisplayName("미션 완료 실패 - 이미 완료된 미션")
 	void completeMission_alreadyCompleted() throws Exception {
 		ChallengeMissionStatus mission = challengeMissionStatusRepository
-			.findByParticipantIdAndMissionDate(participant.getId(), today)
-			.orElseThrow();
+			.findByParticipantIdAndMissionDate(participant.getId(), today);
+
+		assertNotNull(mission, "테스트미션 초기화 실패");
+
 		mission.completeMission();
 		challengeMissionStatusRepository.save(mission);
 

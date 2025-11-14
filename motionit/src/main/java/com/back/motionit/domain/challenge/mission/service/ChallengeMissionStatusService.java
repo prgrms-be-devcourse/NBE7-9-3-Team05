@@ -79,11 +79,12 @@ public class ChallengeMissionStatusService {
 		LocalDate today = LocalDate.now();
 
 		ChallengeMissionStatus mission = challengeMissionStatusRepository
-			.findByParticipantIdAndMissionDate(participant.getId(), today)
-			.orElseGet(() -> {
-				ChallengeMissionStatus newMission = ChallengeMissionStatus.create(participant, today);
-				return challengeMissionStatusRepository.save(newMission);
-			});
+			.findByParticipantIdAndMissionDate(participant.getId(), today);
+
+		if (mission == null) {
+			ChallengeMissionStatus newMission = ChallengeMissionStatus.create(participant, today);
+			mission = challengeMissionStatusRepository.save(newMission);
+		}
 
 		// 이미 완료된 미션인지 확인
 		if (Boolean.TRUE.equals(mission.getCompleted())) {
@@ -121,9 +122,16 @@ public class ChallengeMissionStatusService {
 
 		LocalDate today = LocalDate.now();
 
-		return challengeMissionStatusRepository
-			.findByParticipantIdAndMissionDate(participant.getId(), today)
-			.orElseThrow(() -> new BusinessException(ChallengeMissionErrorCode.NOT_INITIALIZED_MISSION));
+		ChallengeMissionStatus mission =
+			challengeMissionStatusRepository.findByParticipantIdAndMissionDate(
+				participant.getId(), today
+			);
+
+		if (mission == null) {
+			throw new BusinessException(ChallengeMissionErrorCode.NOT_INITIALIZED_MISSION);
+		}
+
+		return mission;
 	}
 
 	// 특정 운동방의 모든 참가자의 오늘 미션 상태 조회
