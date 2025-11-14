@@ -128,6 +128,7 @@ class ChallengeRoomControllerTest : BaseIntegrationTest() {
         fun notFoundUserId() {
             val params = createRoomRequestBuilder.toParamMap()
 
+            // TODO: BaseEntity 리팩토링 완료 후 수정 필요
             val wrongUserId = user.id!! + 1L
             val authorities = AuthorityUtils.createAuthorityList("ROLE")
             securityUser = SecurityUser(wrongUserId, user.password, user.nickname, authorities)
