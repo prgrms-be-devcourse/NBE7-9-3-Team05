@@ -15,7 +15,7 @@ open class YoutubeMetadataClient(
     @Value("\${youtube.api.key}")
     private val apiKey: String
 ) {
-
+    // TODO : RestTemplate을 RestClient로 변경 고려
     private val restTemplate = RestTemplate()
 
     // videoId를 추출하고 메타데이터를 가져오는 메서드
