@@ -1,14 +1,12 @@
 #!/bin/bash
 set -e
 
-# 색상 정의
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-# 설정
 DOCKER_IMAGE="minibrb/motionit-backend"
 BLUE_CONTAINER="motionit-blue"
 GREEN_CONTAINER="motionit-green"
@@ -21,7 +19,6 @@ echo -e "${BLUE}=================================${NC}"
 echo -e "${BLUE}  Blue-Green Deployment${NC}"
 echo -e "${BLUE}=================================${NC}"
 
-# 1. 현재 활성 컨테이너 확인
 echo -e "\n${YELLOW}[1/7] Checking current active container...${NC}"
 
 if docker ps --format '{{.Names}}' | grep -q "^${BLUE_CONTAINER}$"; then
@@ -39,7 +36,6 @@ elif docker ps --format '{{.Names}}' | grep -q "^${GREEN_CONTAINER}$"; then
     CURRENT_COLOR="${GREEN}GREEN${NC}"
     NEW_COLOR="${BLUE}BLUE${NC}"
 else
-    # 첫 배포: Blue로 시작
     CURRENT_CONTAINER=""
     NEW_CONTAINER=$BLUE_CONTAINER
     NEW_PORT=$BLUE_PORT
@@ -49,28 +45,25 @@ else
 fi
 
 if [ -n "$CURRENT_CONTAINER" ]; then
-    echo -e "${GREEN}✓ Current active: ${CURRENT_COLOR} (${CURRENT_CONTAINER}:${CURRENT_PORT})${NC}"
-    echo -e "${GREEN}✓ Deploying to: ${NEW_COLOR} (${NEW_CONTAINER}:${NEW_PORT})${NC}"
+    echo -e "${GREEN}Current active: ${CURRENT_COLOR} (${CURRENT_CONTAINER}:${CURRENT_PORT})${NC}"
+    echo -e "${GREEN}Deploying to: ${NEW_COLOR} (${NEW_CONTAINER}:${NEW_PORT})${NC}"
 else
-    echo -e "${GREEN}✓ Deploying to: ${NEW_COLOR} (${NEW_CONTAINER}:${NEW_PORT})${NC}"
+    echo -e "${GREEN}Deploying to: ${NEW_COLOR} (${NEW_CONTAINER}:${NEW_PORT})${NC}"
 fi
 
-# 2. 최신 이미지 Pull
 echo -e "\n${YELLOW}[2/7] Pulling latest Docker image...${NC}"
 docker pull ${DOCKER_IMAGE}:latest
-echo -e "${GREEN}✓ Image pulled successfully${NC}"
+echo -e "${GREEN}Image pulled successfully${NC}"
 
-# 3. 기존 NEW 컨테이너 정리 (있다면)
 echo -e "\n${YELLOW}[3/7] Cleaning up old ${NEW_COLOR} container...${NC}"
 if docker ps -a --format '{{.Names}}' | grep -q "^${NEW_CONTAINER}$"; then
     docker stop ${NEW_CONTAINER} || true
     docker rm ${NEW_CONTAINER} || true
-    echo -e "${GREEN}✓ Old container removed${NC}"
+    echo -e "${GREEN}Old container removed${NC}"
 else
-    echo -e "${GREEN}✓ No cleanup needed${NC}"
+    echo -e "${GREEN}No cleanup needed${NC}"
 fi
 
-# 4. 새 컨테이너 실행 (NEW)
 echo -e "\n${YELLOW}[4/7] Starting ${NEW_COLOR} container...${NC}"
 docker run -d \
   --name ${NEW_CONTAINER} \
@@ -94,16 +87,15 @@ docker run -d \
   -e KAKAO_CLIENT_ID="${KAKAO_CLIENT_ID}" \
   ${DOCKER_IMAGE}:latest
 
-echo -e "${GREEN}✓ ${NEW_COLOR} container started${NC}"
+echo -e "${GREEN}${NEW_COLOR} container started${NC}"
 
-# 5. Health Check
 echo -e "\n${YELLOW}[5/7] Waiting for ${NEW_COLOR} container to be healthy...${NC}"
 MAX_RETRY=30
 RETRY_COUNT=0
 
 while [ $RETRY_COUNT -lt $MAX_RETRY ]; do
     if curl -f http://localhost:${NEW_PORT}${HEALTH_CHECK_ENDPOINT} > /dev/null 2>&1; then
-        echo -e "${GREEN}✓ ${NEW_COLOR} container is healthy!${NC}"
+        echo -e "${GREEN}${NEW_COLOR} container is healthy!${NC}"
         break
     fi
 
@@ -113,7 +105,7 @@ while [ $RETRY_COUNT -lt $MAX_RETRY ]; do
 done
 
 if [ $RETRY_COUNT -eq $MAX_RETRY ]; then
-    echo -e "\n${RED}✗ Health check failed after ${MAX_RETRY} retries${NC}"
+    echo -e "\n${RED}Health check failed after ${MAX_RETRY} retries${NC}"
     echo -e "${RED}Showing ${NEW_COLOR} container logs:${NC}"
     docker logs --tail 50 ${NEW_CONTAINER}
     echo -e "${RED}Rolling back...${NC}"
@@ -122,10 +114,8 @@ if [ $RETRY_COUNT -eq $MAX_RETRY ]; then
     exit 1
 fi
 
-# 6. Nginx 설정 변경
 echo -e "\n${YELLOW}[6/7] Switching Nginx to ${NEW_COLOR}...${NC}"
 
-# Nginx 설정 파일 생성/수정
 sudo tee ${NGINX_CONF} > /dev/null <<EOF
 server {
     listen 80;
@@ -138,12 +128,10 @@ server {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
 
-        # WebSocket support
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
 
-        # Timeouts
         proxy_connect_timeout 60s;
         proxy_send_timeout 60s;
         proxy_read_timeout 60s;
@@ -156,36 +144,31 @@ server {
 }
 EOF
 
-# Nginx 심볼릭 링크 생성 (없는 경우)
 if [ ! -L /etc/nginx/sites-enabled/motionit ]; then
     sudo ln -sf ${NGINX_CONF} /etc/nginx/sites-enabled/motionit
 fi
 
-# Nginx 설정 테스트
 if sudo nginx -t; then
     sudo systemctl reload nginx
-    echo -e "${GREEN}✓ Nginx switched to ${NEW_COLOR} (port ${NEW_PORT})${NC}"
+    echo -e "${GREEN}Nginx switched to ${NEW_COLOR} (port ${NEW_PORT})${NC}"
 else
-    echo -e "${RED}✗ Nginx configuration test failed${NC}"
+    echo -e "${RED}Nginx configuration test failed${NC}"
     exit 1
 fi
 
-# 7. 기존 컨테이너 정리
 if [ -n "$CURRENT_CONTAINER" ]; then
     echo -e "\n${YELLOW}[7/7] Stopping old ${CURRENT_COLOR} container...${NC}"
-    sleep 5  # 기존 요청 처리 대기
+    sleep 5
     docker stop ${CURRENT_CONTAINER} || true
     docker rm ${CURRENT_CONTAINER} || true
-    echo -e "${GREEN}✓ Old ${CURRENT_COLOR} container stopped${NC}"
+    echo -e "${GREEN}Old ${CURRENT_COLOR} container stopped${NC}"
 else
     echo -e "\n${YELLOW}[7/7] No old container to stop${NC}"
 fi
 
-# 사용하지 않는 이미지 정리
 echo -e "\n${YELLOW}Cleaning up old images...${NC}"
 docker image prune -f
 
-# 최종 상태 출력
 echo -e "\n${GREEN}=================================${NC}"
 echo -e "${GREEN}Current Running Containers:${NC}"
 docker ps --filter "name=motionit-" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
