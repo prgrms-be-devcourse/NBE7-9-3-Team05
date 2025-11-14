@@ -1,44 +1,50 @@
-package com.back.motionit.domain.challenge.room.repository;
+package com.back.motionit.domain.challenge.room.repository
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Repository;
-
-import com.back.motionit.domain.challenge.room.entity.ChallengeRoom;
-
-import jakarta.persistence.EntityManager;
-import lombok.RequiredArgsConstructor;
+import com.back.motionit.domain.challenge.room.entity.ChallengeRoom
+import com.back.motionit.domain.challenge.video.entity.OpenStatus
+import jakarta.persistence.EntityManager
+import lombok.RequiredArgsConstructor
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.Pageable
+import org.springframework.stereotype.Repository
 
 @Repository
 @RequiredArgsConstructor
-public class ChallengeRoomSummaryRepositoryImpl implements ChallengeRoomSummaryRepository {
+class ChallengeRoomSummaryRepositoryImpl(
+    private val manager: EntityManager
+) : ChallengeRoomSummaryRepository {
 
-	private final EntityManager manager;
-
-	@Override
-	public Page<ChallengeRoom> fetchOpenRooms(Pageable pageable) {
-		var data = manager.createQuery("""
+    override fun fetchOpenRooms(pageable: Pageable): Page<ChallengeRoom> {
+        val data = manager.createQuery(
+            """
 					select r
 					from ChallengeRoom r
-					where r.openStatus = com.back.motionit.domain.challenge.video.entity.OpenStatus.OPEN
+					where r.openStatus = :status
 					order by r.createDate desc
-				""", ChallengeRoom.class)
-			.setFirstResult((int)pageable.getOffset())
-			.setMaxResults(pageable.getPageSize())
-			.getResultList();
+				
+				""".trimIndent(), ChallengeRoom::class.java
+        )
+            .setParameter("status", OpenStatus.OPEN)
+            .setFirstResult(pageable.offset.toInt())
+            .setMaxResults(pageable.pageSize)
+            .resultList
 
-		long total = countOpenRooms();
-		return new PageImpl<>(data, pageable, total);
-	}
+        val total = countOpenRooms().toLong()
+        return PageImpl(data, pageable, total)
+    }
 
-	@Override
-	public int countOpenRooms() {
-		Long cnt = manager.createQuery("""
+    override fun countOpenRooms(): Int {
+        val cnt = manager.createQuery(
+            """
 				select count(r)
 				from ChallengeRoom r
-				where r.openStatus = com.back.motionit.domain.challenge.video.entity.OpenStatus.OPEN
-			""", Long.class).getSingleResult();
-		return cnt.intValue();
-	}
+				where r.openStatus = :status
+			
+			""".trimIndent(), Long::class.java
+        )
+            .setParameter("status", OpenStatus.OPEN)
+            .singleResult
+        return cnt.toInt()
+    }
 }

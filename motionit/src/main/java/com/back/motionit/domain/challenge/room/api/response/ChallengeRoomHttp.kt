@@ -1,15 +1,15 @@
-package com.back.motionit.domain.challenge.room.api.response;
+package com.back.motionit.domain.challenge.room.api.response
 
-public class ChallengeRoomHttp {
-	public static final String CREATE_ROOM_SUCCESS_CODE = "R-201";
-	public static final String CREATE_ROOM_SUCCESS_MESSAGE = "Success to create challenge room";
+object ChallengeRoomHttp {
+    const val CREATE_ROOM_SUCCESS_CODE: String = "R-201"
+    const val CREATE_ROOM_SUCCESS_MESSAGE: String = "Success to create challenge room"
 
-	public static final String GET_ROOMS_SUCCESS_CODE = "R-200";
-	public static final String GET_ROOMS_SUCCESS_MESSAGE = "Success to get challenge rooms";
+    const val GET_ROOMS_SUCCESS_CODE: String = "R-200"
+    const val GET_ROOMS_SUCCESS_MESSAGE: String = "Success to get challenge rooms"
 
-	public static final String GET_ROOM_SUCCESS_CODE = "R-200";
-	public static final String GET_ROOM_SUCCESS_MESSAGE = "Success to get challenge room";
+    const val GET_ROOM_SUCCESS_CODE: String = "R-200"
+    const val GET_ROOM_SUCCESS_MESSAGE: String = "Success to get challenge room"
 
-	public static final String DELETE_ROOM_SUCCESS_CODE = "R-200";
-	public static final String DELETE_ROOM_SUCCESS_MESSAGE = "Success to delete challenge room";
+    const val DELETE_ROOM_SUCCESS_CODE: String = "R-200"
+    const val DELETE_ROOM_SUCCESS_MESSAGE: String = "Success to delete challenge room"
 }
