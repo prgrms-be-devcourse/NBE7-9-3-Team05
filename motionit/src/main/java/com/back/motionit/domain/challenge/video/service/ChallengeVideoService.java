@@ -62,8 +62,11 @@ public class ChallengeVideoService {
 	@Transactional
 	public void deleteVideoByUser(Long actorId, Long roomId, Long videoId) {
 		challengeAuthValidator.validateActiveParticipant(actorId, roomId);
-		ChallengeVideo video = challengeVideoRepository.findByIdAndUserId(videoId, actorId)
-			.orElseThrow(() -> new BusinessException(ChallengeVideoErrorCode.VIDEO_NOT_FOUND_OR_FORBIDDEN));
+		ChallengeVideo video = challengeVideoRepository.findByIdAndUserId(videoId, actorId);
+
+		if(video == null) {
+			throw new BusinessException(ChallengeVideoErrorCode.VIDEO_NOT_FOUND_OR_FORBIDDEN);
+		}
 
 		challengeVideoRepository.delete(video);
 	}

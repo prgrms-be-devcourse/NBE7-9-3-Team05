@@ -1,24 +1,18 @@
-package com.back.motionit.domain.challenge.video.repository;
+package com.back.motionit.domain.challenge.video.repository
 
-import java.time.LocalDate;
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
+import com.back.motionit.domain.challenge.room.entity.ChallengeRoom
+import com.back.motionit.domain.challenge.video.entity.ChallengeVideo
+import org.springframework.data.jpa.repository.JpaRepository
+import java.time.LocalDate
 
-import org.springframework.data.jpa.repository.JpaRepository;
+interface ChallengeVideoRepository : JpaRepository<ChallengeVideo, Long> {
+    fun existsByChallengeRoomAndYoutubeVideoId(challengeRoom: ChallengeRoom, videoId: String): Boolean
 
-import com.back.motionit.domain.challenge.room.entity.ChallengeRoom;
-import com.back.motionit.domain.challenge.video.entity.ChallengeVideo;
+    fun findByUserIdAndUploadDate(userId: Long, today: LocalDate): List<ChallengeVideo>
 
-public interface ChallengeVideoRepository extends JpaRepository<ChallengeVideo, Long> {
+    fun findByIdAndUserId(videoId: Long, userId: Long): ChallengeVideo?
 
-	boolean existsByChallengeRoomAndYoutubeVideoId(ChallengeRoom challengeRoom, String videoId);
+    fun findByChallengeRoomId(roomId: Long): List<ChallengeVideo>
 
-	List<ChallengeVideo> findByUserIdAndUploadDate(Long userId, LocalDate today);
-
-	Optional<ChallengeVideo> findByIdAndUserId(Long videoId, Long userId);
-
-	Collection<ChallengeVideo> findByChallengeRoomId(Long roomId);
-
-	boolean existsByChallengeRoomIdAndUploadDate(Long roomId, LocalDate today);
+    fun existsByChallengeRoomIdAndUploadDate(roomId: Long, today: LocalDate): Boolean
 }
