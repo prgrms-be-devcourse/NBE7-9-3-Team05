@@ -35,7 +35,7 @@ class JwtUtil {
         }
 
         @JvmStatic
-        fun isValid(jwt: String?, secret: String): Boolean {
+        fun isValid(jwt: String, secret: String): Boolean {
             val secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret.trim { it <= ' ' }))
 
             try {
@@ -53,22 +53,29 @@ class JwtUtil {
 
         @JvmStatic
         fun payloadOrNull(jwt: String?, secret: String): Map<String, Any>? {
+            if (jwt.isNullOrBlank()) return null
+
             val secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret.trim { it <= ' ' }))
 
-            if (isValid(jwt, secret)) {
-                return Jwts
-                    .parser()
-                    .verifyWith(secretKey)
-                    .build()
-                    .parse(jwt)
-                    .payload as Map<String, Any>
+            if (!isValid(jwt, secret)) {
+                return null
             }
 
-            return null
+
+            return Jwts
+                .parser()
+                .verifyWith(secretKey)
+                .build()
+                .parse(jwt)
+                .payload as Map<String, Any>
+
+
         }
 
         @JvmStatic
         fun isExpired(jwt: String?, secret: String): Boolean {
+            if (jwt.isNullOrBlank()) return true
+
             val secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret.trim { it <= ' ' }))
 
             try {
