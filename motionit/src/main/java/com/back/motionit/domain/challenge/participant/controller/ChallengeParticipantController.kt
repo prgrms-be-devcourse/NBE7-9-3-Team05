@@ -1,56 +1,57 @@
-package com.back.motionit.domain.challenge.participant.controller;
+package com.back.motionit.domain.challenge.participant.controller
 
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import com.back.motionit.domain.challenge.participant.api.ChallengeParticipantApi;
-import com.back.motionit.domain.challenge.participant.api.response.ChallengeParticipantHttp;
-import com.back.motionit.domain.challenge.participant.dto.ChallengeParticipantResponse;
-import com.back.motionit.domain.challenge.participant.service.ChallengeParticipantService;
-import com.back.motionit.domain.challenge.validator.ChallengeAuthValidator;
-import com.back.motionit.domain.user.entity.User;
-import com.back.motionit.global.request.RequestContext;
-import com.back.motionit.global.respoonsedata.ResponseData;
-
-import jakarta.validation.constraints.NotNull;
-import lombok.RequiredArgsConstructor;
+import com.back.motionit.domain.challenge.participant.api.ChallengeParticipantApi
+import com.back.motionit.domain.challenge.participant.api.response.ChallengeParticipantHttp
+import com.back.motionit.domain.challenge.participant.dto.ChallengeParticipantResponse
+import com.back.motionit.domain.challenge.participant.service.ChallengeParticipantService
+import com.back.motionit.domain.challenge.validator.ChallengeAuthValidator
+import com.back.motionit.global.request.RequestContext
+import com.back.motionit.global.respoonsedata.ResponseData
+import com.back.motionit.global.respoonsedata.ResponseData.Companion.success
+import jakarta.validation.constraints.NotNull
+import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/api/v1/challenge/participants")
-@RequiredArgsConstructor
-public class ChallengeParticipantController implements ChallengeParticipantApi {
+class ChallengeParticipantController(
+    private val challengeParticipantService: ChallengeParticipantService,
+    private val requestContext: RequestContext,
+    private val challengeAuthValidator: ChallengeAuthValidator,
+) : ChallengeParticipantApi {
 
-	private final ChallengeParticipantService challengeParticipantService;
-	private final RequestContext requestContext;
-	private final ChallengeAuthValidator challengeAuthValidator;
+    @PostMapping("/{roomId}/join")
+    override fun joinChallengeRoom(
+        @PathVariable("roomId") roomId: @NotNull Long
+    ): ResponseData<Void> {
+        val actor = requestContext.actor
 
-	@PostMapping("/{roomId}/join")
-	public ResponseData<Void> joinChallengeRoom(@PathVariable("roomId") @NotNull Long roomId) {
-		User actor = requestContext.getActor();
+        challengeParticipantService.joinChallengeRoom(actor.id!!, roomId)
+        return success(ChallengeParticipantHttp.JOIN_SUCCESS_MESSAGE, null)
+    }
 
-		challengeParticipantService.joinChallengeRoom(actor.getId(), roomId);
-		return ResponseData.success(ChallengeParticipantHttp.JOIN_SUCCESS_MESSAGE, null);
-	}
+    @PostMapping("/{roomId}/leave")
+    override fun leaveChallengeRoom(
+        @PathVariable("roomId") roomId: @NotNull Long
+    ): ResponseData<Void> {
+        val actor = requestContext.actor
+        challengeAuthValidator.validateActiveParticipant(actor.id!!, roomId)
 
-	@PostMapping("/{roomId}/leave")
-	public ResponseData<Void> leaveChallengeRoom(@PathVariable("roomId") @NotNull Long roomId) {
-		User actor = requestContext.getActor();
-		challengeAuthValidator.validateActiveParticipant(actor.getId(), roomId);
+        challengeParticipantService.leaveChallenge(actor.id!!, roomId)
+        return success(ChallengeParticipantHttp.LEAVE_SUCCESS_MESSAGE, null)
+    }
 
-		challengeParticipantService.leaveChallenge(actor.getId(), roomId);
-		return ResponseData.success(ChallengeParticipantHttp.LEAVE_SUCCESS_MESSAGE, null);
-	}
+    @GetMapping("/{roomId}/status")
+    override fun getParticipationStatus(
+        @PathVariable("roomId") roomId: Long
+    ): ResponseData<ChallengeParticipantResponse> {
+        val actor = requestContext.actor
+        val joined = challengeParticipantService.isActiveParticipant(actor.id!!, roomId)
 
-	@GetMapping("/{roomId}/status")
-	public ResponseData<ChallengeParticipantResponse> getParticipationStatus(@PathVariable("roomId") Long roomId) {
-		User actor = requestContext.getActor();
-		boolean joined = challengeParticipantService.isActiveParticipant(actor.getId(), roomId);
-
-		return ResponseData.success(ChallengeParticipantHttp.GET_PARTICIPANT_STATUS_SUCCESS_MESSAGE,
-			new ChallengeParticipantResponse(actor.getId(), roomId, joined));
-	}
-
+        return success(
+            ChallengeParticipantHttp.GET_PARTICIPANT_STATUS_SUCCESS_MESSAGE,
+            ChallengeParticipantResponse(actor.id!!, roomId, joined)
+        )
+    }
 }
+
+// TODO: actor.id!! null 체크 제거하기
