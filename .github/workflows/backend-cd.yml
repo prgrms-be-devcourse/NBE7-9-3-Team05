@@ -6,16 +6,14 @@ on:
     paths:
       - "motionit/**"
       - ".github/workflows/backend-cd.yml"
-  pull_request:
-    branches: [ main ]
-    paths:
-      - "motionit/**"
-      - ".github/workflows/backend-cd.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
-  pull-requests: write
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -62,7 +60,6 @@ jobs:
           echo "  - ${IMAGE_NAME}:${TIMESTAMP}-${SHORT_SHA}"
 
       - name: Copy deploy script to EC2
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -73,7 +70,6 @@ jobs:
           strip_components: 2
 
       - name: Deploy to EC2 (Blue-Green)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: appleboy/ssh-action@v1.0.3
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -118,58 +114,34 @@ jobs:
             
             ./deploy-blue-green.sh
 
-      - name: Test Build (PR Only)
-        if: github.event_name == 'pull_request'
-        working-directory: motionit
-        run: |
-          echo "🔍 PR 배포 테스트 - Docker 이미지 빌드 확인"
-          echo "✅ Docker 이미지가 정상적으로 빌드되고 Push되었습니다."
-          echo ""
-          echo "📋 배포 체크리스트:"
-          echo "  - Docker build: ✅"
-          echo "  - Docker push: ✅"
-          echo ""
-          echo "⚠️  실제 배포는 main 브랜치 merge 후 실행됩니다."
-
-      - name: Comment PR (Test Result)
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const message = `## 🚀 배포 준비 완료
-
-            ### ✅ 배포 전 체크 완료
-            - Docker 이미지 빌드: **성공**
-            - Docker Hub Push: **성공**
-            - GitHub-hosted runner: **정상**
-
-            ### 📦 배포 대상
-            - Image: \`minibrb/motionit-backend:latest\`
-            - Runner: \`ubuntu-latest\`
-            - 배포 방식: \`Blue-Green (Nginx)\`
-
-            ### ⏭️ 다음 단계
-            이 PR을 \`main\` 브랜치에 merge하면 자동으로 EC2에 Blue-Green 배포가 시작됩니다.
-
-            ⚠️ **주의**: Main merge 시 실제 서버에 배포됩니다!
-            `;
-
-            github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-              body: message
-            });
-
       - name: Deployment Success
-        if: success() && github.event_name == 'push'
+        if: success()
         run: |
-          echo "🚀 Deployment completed successfully!"
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          echo "================================="
+          echo "🚀 Deployment Completed!"
+          echo "================================="
           echo "Server: http://52.78.181.248"
           echo "Health: http://52.78.181.248/actuator/health"
+          echo "Image: minibrb/motionit-backend:${TIMESTAMP}-${SHORT_SHA}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Actor: ${{ github.actor }}"
+          echo "================================="
 
       - name: Deployment Failed
         if: failure()
         run: |
-          echo "❌ Deployment failed. Check the logs above for details."
+          echo "================================="
+          echo "❌ Deployment Failed"
+          echo "================================="
+          echo "Commit: ${{ github.sha }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Actor: ${{ github.actor }}"
+          echo ""
+          echo "To rollback, SSH to EC2 and run:"
+          echo "  cd /home/ubuntu"
+          echo "  ./rollback.sh <previous-tag>"
+          echo "================================="
           exit 1

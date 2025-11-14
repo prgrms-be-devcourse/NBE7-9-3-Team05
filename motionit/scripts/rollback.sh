@@ -15,31 +15,33 @@ GREEN_PORT=8081
 NGINX_CONF="/etc/nginx/sites-available/motionit"
 HEALTH_CHECK_ENDPOINT="/actuator/health"
 
-echo -e "${BLUE}=================================${NC}"
-echo -e "${BLUE}  Blue-Green Deployment${NC}"
-echo -e "${BLUE}=================================${NC}"
+echo -e "${RED}=================================${NC}"
+echo -e "${RED}  Rollback Deployment${NC}"
+echo -e "${RED}=================================${NC}"
 
-echo -e "\n${YELLOW}[Pre-check] Verifying requirements...${NC}"
-if ! command -v docker &> /dev/null; then
-    echo -e "${RED}✗ Docker is not installed${NC}"
+if [ $# -eq 0 ]; then
+    echo -e "\n${YELLOW}Usage:${NC}"
+    echo -e "  $0 <image-tag>"
+    echo -e "\n${YELLOW}Examples:${NC}"
+    echo -e "  $0 20241114-abc1234"
+    echo -e "  $0 latest"
+    echo -e "\n${YELLOW}Available tags from Docker Hub:${NC}"
+    docker search ${DOCKER_IMAGE} --limit 5 2>/dev/null || echo "  (Run 'docker images ${DOCKER_IMAGE}' on EC2 to see local tags)"
     exit 1
 fi
 
-if ! docker ps &> /dev/null; then
-    echo -e "${RED}✗ Docker permission denied. User may not be in docker group.${NC}"
-    echo -e "${YELLOW}  Try: sudo usermod -aG docker \$USER && newgrp docker${NC}"
+TARGET_TAG=$1
+TARGET_IMAGE="${DOCKER_IMAGE}:${TARGET_TAG}"
+
+echo -e "\n${YELLOW}[1/8] Verifying target image...${NC}"
+if ! docker pull ${TARGET_IMAGE}; then
+    echo -e "${RED}✗ Failed to pull ${TARGET_IMAGE}${NC}"
+    echo -e "${RED}  Please check if the tag exists in Docker Hub${NC}"
     exit 1
 fi
+echo -e "${GREEN}✓ Image ${TARGET_IMAGE} verified${NC}"
 
-if ! command -v nginx &> /dev/null; then
-    echo -e "${RED}✗ Nginx is not installed${NC}"
-    exit 1
-fi
-
-echo -e "${GREEN}✓ All requirements verified${NC}"
-
-echo -e "\n${YELLOW}[1/7] Checking current active container...${NC}"
-
+echo -e "\n${YELLOW}[2/8] Checking current active container...${NC}"
 if docker ps --format '{{.Names}}' | grep -q "^${BLUE_CONTAINER}$"; then
     CURRENT_CONTAINER=$BLUE_CONTAINER
     CURRENT_PORT=$BLUE_PORT
@@ -55,35 +57,21 @@ elif docker ps --format '{{.Names}}' | grep -q "^${GREEN_CONTAINER}$"; then
     CURRENT_COLOR="${GREEN}GREEN${NC}"
     NEW_COLOR="${BLUE}BLUE${NC}"
 else
-    CURRENT_CONTAINER=""
-    NEW_CONTAINER=$BLUE_CONTAINER
-    NEW_PORT=$BLUE_PORT
-    CURRENT_COLOR="NONE"
-    NEW_COLOR="${BLUE}BLUE${NC}"
-    echo -e "${YELLOW}No active container. Starting first deployment...${NC}"
+    echo -e "${RED}✗ No active container found${NC}"
+    exit 1
 fi
 
-if [ -n "$CURRENT_CONTAINER" ]; then
-    echo -e "${GREEN}Current active: ${CURRENT_COLOR} (${CURRENT_CONTAINER}:${CURRENT_PORT})${NC}"
-    echo -e "${GREEN}Deploying to: ${NEW_COLOR} (${NEW_CONTAINER}:${NEW_PORT})${NC}"
-else
-    echo -e "${GREEN}Deploying to: ${NEW_COLOR} (${NEW_CONTAINER}:${NEW_PORT})${NC}"
-fi
+echo -e "${GREEN}✓ Current: ${CURRENT_COLOR} (port ${CURRENT_PORT})${NC}"
+echo -e "${GREEN}✓ Rolling back to: ${NEW_COLOR} (port ${NEW_PORT})${NC}"
 
-echo -e "\n${YELLOW}[2/7] Pulling latest Docker image...${NC}"
-docker pull ${DOCKER_IMAGE}:latest
-echo -e "${GREEN}Image pulled successfully${NC}"
-
-echo -e "\n${YELLOW}[3/7] Cleaning up old ${NEW_COLOR} container...${NC}"
+echo -e "\n${YELLOW}[3/8] Cleaning up old ${NEW_COLOR} container...${NC}"
 if docker ps -a --format '{{.Names}}' | grep -q "^${NEW_CONTAINER}$"; then
     docker stop ${NEW_CONTAINER} || true
     docker rm ${NEW_CONTAINER} || true
-    echo -e "${GREEN}Old container removed${NC}"
-else
-    echo -e "${GREEN}No cleanup needed${NC}"
 fi
+echo -e "${GREEN}✓ Cleanup completed${NC}"
 
-echo -e "\n${YELLOW}[4/7] Starting ${NEW_COLOR} container...${NC}"
+echo -e "\n${YELLOW}[4/8] Starting ${NEW_COLOR} container with ${TARGET_TAG}...${NC}"
 docker run -d \
   --name ${NEW_CONTAINER} \
   --restart unless-stopped \
@@ -104,37 +92,34 @@ docker run -d \
   -e OPENAI_API_KEY="${OPENAI_API_KEY}" \
   -e YOUTUBE_API_KEY="${YOUTUBE_API_KEY}" \
   -e KAKAO_CLIENT_ID="${KAKAO_CLIENT_ID}" \
-  ${DOCKER_IMAGE}:latest
+  ${TARGET_IMAGE}
 
-echo -e "${GREEN}${NEW_COLOR} container started${NC}"
+echo -e "${GREEN}✓ ${NEW_COLOR} container started${NC}"
 
-echo -e "\n${YELLOW}[5/7] Waiting for ${NEW_COLOR} container to be healthy...${NC}"
+echo -e "\n${YELLOW}[5/8] Health checking...${NC}"
 MAX_RETRY=30
 RETRY_COUNT=0
 
 while [ $RETRY_COUNT -lt $MAX_RETRY ]; do
     if curl -f http://localhost:${NEW_PORT}${HEALTH_CHECK_ENDPOINT} > /dev/null 2>&1; then
-        echo -e "${GREEN}${NEW_COLOR} container is healthy!${NC}"
+        echo -e "${GREEN}✓ ${NEW_COLOR} container is healthy!${NC}"
         break
     fi
-
     RETRY_COUNT=$((RETRY_COUNT+1))
     echo -e "${YELLOW}Waiting... ($RETRY_COUNT/$MAX_RETRY)${NC}"
     sleep 2
 done
 
 if [ $RETRY_COUNT -eq $MAX_RETRY ]; then
-    echo -e "\n${RED}Health check failed after ${MAX_RETRY} retries${NC}"
-    echo -e "${RED}Showing ${NEW_COLOR} container logs:${NC}"
+    echo -e "\n${RED}✗ Health check failed${NC}"
     docker logs --tail 50 ${NEW_CONTAINER}
-    echo -e "${RED}Rolling back...${NC}"
+    echo -e "${RED}Rolling back failed. Keeping current ${CURRENT_COLOR} container.${NC}"
     docker stop ${NEW_CONTAINER} || true
     docker rm ${NEW_CONTAINER} || true
     exit 1
 fi
 
-echo -e "\n${YELLOW}[6/7] Switching Nginx to ${NEW_COLOR}...${NC}"
-
+echo -e "\n${YELLOW}[6/8] Switching Nginx to ${NEW_COLOR}...${NC}"
 sudo tee ${NGINX_CONF} > /dev/null <<EOF
 server {
     listen 80;
@@ -169,30 +154,23 @@ fi
 
 if sudo nginx -t; then
     sudo systemctl reload nginx
-    echo -e "${GREEN}Nginx switched to ${NEW_COLOR} (port ${NEW_PORT})${NC}"
+    echo -e "${GREEN}✓ Nginx switched to ${NEW_COLOR} (port ${NEW_PORT})${NC}"
 else
-    echo -e "${RED}Nginx configuration test failed${NC}"
+    echo -e "${RED}✗ Nginx configuration test failed${NC}"
     exit 1
 fi
 
-if [ -n "$CURRENT_CONTAINER" ]; then
-    echo -e "\n${YELLOW}[7/7] Stopping old ${CURRENT_COLOR} container...${NC}"
-    sleep 5
-    docker stop ${CURRENT_CONTAINER} || true
-    docker rm ${CURRENT_CONTAINER} || true
-    echo -e "${GREEN}Old ${CURRENT_COLOR} container stopped${NC}"
-else
-    echo -e "\n${YELLOW}[7/7] No old container to stop${NC}"
-fi
+echo -e "\n${YELLOW}[7/8] Stopping old ${CURRENT_COLOR} container...${NC}"
+sleep 5
+docker stop ${CURRENT_CONTAINER} || true
+docker rm ${CURRENT_CONTAINER} || true
+echo -e "${GREEN}✓ Old container stopped${NC}"
 
-echo -e "\n${YELLOW}Cleaning up old images...${NC}"
+echo -e "\n${YELLOW}[8/8] Cleanup...${NC}"
 docker image prune -f
 
 echo -e "\n${GREEN}=================================${NC}"
-echo -e "${GREEN}Current Running Containers:${NC}"
-docker ps --filter "name=motionit-" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-
-echo -e "\n${GREEN}=================================${NC}"
-echo -e "${GREEN}  Deployment Completed! 🚀${NC}"
-echo -e "${GREEN}  Active: ${NEW_COLOR}${NC}"
+echo -e "${GREEN}  Rollback Completed!${NC}"
+echo -e "${GREEN}  Rolled back to: ${TARGET_TAG}${NC}"
+echo -e "${GREEN}  Active: ${NEW_COLOR} (port ${NEW_PORT})${NC}"
 echo -e "${GREEN}=================================${NC}"
