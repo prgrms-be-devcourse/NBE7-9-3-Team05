@@ -6,15 +6,15 @@ import java.util.Optional
 
 interface UserRepository : JpaRepository<User, Long> {
 
-    fun findByEmail(email: String?): Optional<User>
+    fun findByEmail(email: String): Optional<User>
 
-    fun findByKakaoId(kakaoId: Long?): Optional<User>
+    fun findByKakaoId(kakaoId: Long): Optional<User>
 
-    fun findByNickname(nickname: String?): Optional<User>
+    fun findByNickname(nickname: String): Optional<User>
 
-    fun findByRefreshToken(refreshToken: String?): Optional<User>
+    fun findByRefreshToken(refreshToken: String): Optional<User>
 
-    fun existsByEmail(email: String?): Boolean
+    fun existsByEmail(email: String): Boolean
 
-    fun existsByNickname(nickname: String?): Boolean
+    fun existsByNickname(nickname: String): Boolean
 }
