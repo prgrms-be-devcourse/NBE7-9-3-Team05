@@ -69,11 +69,10 @@ public class ChallengeRoomControllerTest extends BaseIntegrationTest {
 	private ChallengeParticipantHelper participantHelper;
 
 	@Autowired
-	private AwsS3Service awsS3Service;
+	private ObjectMapper mapper;
 
 	private CreateRoomRequestBuilder createRoomRequestBuilder;
 	private User user;
-	private ObjectMapper mapper = new ObjectMapper();
 
 	SecurityUser securityUser;
 	UsernamePasswordAuthenticationToken authentication;
@@ -263,7 +262,7 @@ public class ChallengeRoomControllerTest extends BaseIntegrationTest {
 				}
 			);
 
-			assertThat(data.rooms()).hasSizeLessThanOrEqualTo(size);
+			assertThat(data.getRooms()).hasSizeLessThanOrEqualTo(size);
 		}
 
 		@Test
@@ -299,7 +298,7 @@ public class ChallengeRoomControllerTest extends BaseIntegrationTest {
 				}
 			);
 
-			assertThat(data.rooms()).hasSizeLessThanOrEqualTo(Integer.parseInt(ChallengeRoomConstants.DEFAULT_SIZE));
+			assertThat(data.getRooms()).hasSizeLessThanOrEqualTo(Integer.parseInt(ChallengeRoomConstants.DEFAULT_SIZE));
 		}
 	}
 

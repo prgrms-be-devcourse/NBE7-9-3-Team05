@@ -1,39 +1,35 @@
-package com.back.motionit.domain.challenge.room.dto;
+package com.back.motionit.domain.challenge.room.dto
 
-import java.time.LocalDateTime;
-import java.util.List;
+import com.back.motionit.domain.challenge.room.entity.ChallengeRoom
+import com.back.motionit.domain.challenge.video.entity.OpenStatus
+import java.time.LocalDateTime
 
-import com.back.motionit.domain.challenge.room.entity.ChallengeRoom;
-import com.back.motionit.domain.challenge.video.entity.OpenStatus;
-
-public record GetRoomResponse(
-	Long id,
-	String title,
-	String description,
-	int capacity,
-	OpenStatus openStatus,
-	LocalDateTime challengeStartDate,
-	LocalDateTime challengeEndDate,
-	String roomImage,
-	List<ChallengeVideoDto> videos,
-	List<ChallengeParticipantDto> participants
+data class GetRoomResponse(
+    val id: Long?,
+    val title: String,
+    val description: String,
+    val capacity: Int,
+    val openStatus: OpenStatus,
+    val challengeStartDate: LocalDateTime,
+    val challengeEndDate: LocalDateTime,
+    val roomImage: String,
+    val videos: List<ChallengeVideoDto>,
+    val participants: List<ChallengeParticipantDto>
 ) {
-	public GetRoomResponse(
-		ChallengeRoom room,
-		List<ChallengeVideoDto> videos,
-		List<ChallengeParticipantDto> participants
-	) {
-		this(
-			room.getId(),
-			room.getTitle(),
-			room.getDescription(),
-			room.getCapacity(),
-			room.getOpenStatus(),
-			room.getChallengeStartDate(),
-			room.getChallengeEndDate(),
-			room.getRoomImage(),
-			videos,
-			participants
-		);
-	}
+    constructor(
+        room: ChallengeRoom,
+        videos: List<ChallengeVideoDto>,
+        participants: List<ChallengeParticipantDto>
+    ) : this(
+        room.id,
+        room.title,
+        room.description,
+        room.capacity,
+        room.openStatus,
+        room.challengeStartDate,
+        room.challengeEndDate,
+        room.roomImage,
+        videos,
+        participants
+    )
 }

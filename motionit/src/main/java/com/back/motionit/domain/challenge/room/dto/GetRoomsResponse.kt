@@ -1,9 +1,6 @@
-package com.back.motionit.domain.challenge.room.dto;
+package com.back.motionit.domain.challenge.room.dto
 
-import java.util.List;
-
-public record GetRoomsResponse(
-	int total,
-	List<GetRoomSummary> rooms
-) {
-}
+data class GetRoomsResponse(
+	val total: Int,
+	val rooms: List<GetRoomSummary>
+)

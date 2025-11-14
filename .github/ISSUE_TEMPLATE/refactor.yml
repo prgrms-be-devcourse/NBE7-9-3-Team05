@@ -8,6 +8,7 @@ body:
     attributes:
       label: 리팩터링 유형
       options:
+        - 🔄 Kotlin 마이그레이션
         - 🔄 코드 중복 제거
         - 🏗️ 구조 개선
         - 📝 네이밍 개선

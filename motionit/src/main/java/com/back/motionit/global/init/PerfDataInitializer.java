@@ -89,9 +89,7 @@ public class PerfDataInitializer {
 					LocalDateTime.now().minusDays(1),
 					LocalDateTime.now().plusDays(7),
 					"images/test/perf_room_" + idx + ".png",
-					null,
-					new ArrayList<>(),
-					new ArrayList<>()
+					null
 				)))
 				.toList();
 
@@ -142,9 +140,7 @@ public class PerfDataInitializer {
 					LocalDateTime.now().minusDays(1),
 					LocalDateTime.now().plusDays(7),
 					"images/test/perf_room_extra_" + (15 + i) + ".png",
-					null,
-					new ArrayList<>(),
-					new ArrayList<>()
+					null
 				)))
 				.toList();
 
