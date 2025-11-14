@@ -1,418 +1,419 @@
-package com.back.motionit.domain.challenge.room.controller;
+package com.back.motionit.domain.challenge.room.controller
 
-import static org.assertj.core.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
-import java.time.LocalDateTime;
-import java.util.Map;
-
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.AuthorityUtils;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
-import org.springframework.test.web.servlet.ResultActions;
-
-import com.back.motionit.domain.challenge.participant.entity.ChallengeParticipant;
-import com.back.motionit.domain.challenge.participant.entity.ChallengeParticipantRole;
-import com.back.motionit.domain.challenge.participant.repository.ChallengeParticipantRepository;
-import com.back.motionit.domain.challenge.room.api.response.ChallengeRoomHttp;
-import com.back.motionit.domain.challenge.room.builder.CreateRoomRequestBuilder;
-import com.back.motionit.domain.challenge.room.dto.GetRoomsResponse;
-import com.back.motionit.domain.challenge.room.entity.ChallengeRoom;
-import com.back.motionit.domain.challenge.room.repository.ChallengeRoomRepository;
-import com.back.motionit.domain.user.entity.User;
-import com.back.motionit.global.constants.ChallengeRoomConstants;
-import com.back.motionit.global.error.code.ChallengeRoomErrorCode;
-import com.back.motionit.global.error.code.CommonErrorCode;
-import com.back.motionit.global.error.exception.BusinessException;
-import com.back.motionit.global.service.AwsS3Service;
-import com.back.motionit.helper.ChallengeParticipantHelper;
-import com.back.motionit.helper.ChallengeRoomHelper;
-import com.back.motionit.helper.UserHelper;
-import com.back.motionit.security.SecurityUser;
-import com.back.motionit.support.BaseIntegrationTest;
-import com.back.motionit.support.SecuredIntegrationTest;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jayway.jsonpath.JsonPath;
+import com.back.motionit.domain.challenge.participant.entity.ChallengeParticipantRole
+import com.back.motionit.domain.challenge.participant.repository.ChallengeParticipantRepository
+import com.back.motionit.domain.challenge.room.api.response.ChallengeRoomHttp
+import com.back.motionit.domain.challenge.room.builder.CreateRoomRequestBuilder
+import com.back.motionit.domain.challenge.room.dto.GetRoomsResponse
+import com.back.motionit.domain.challenge.room.repository.ChallengeRoomRepository
+import com.back.motionit.domain.user.entity.User
+import com.back.motionit.global.constants.ChallengeRoomConstants
+import com.back.motionit.global.error.code.ChallengeRoomErrorCode
+import com.back.motionit.global.error.code.CommonErrorCode
+import com.back.motionit.global.error.exception.BusinessException
+import com.back.motionit.helper.ChallengeParticipantHelper
+import com.back.motionit.helper.ChallengeRoomHelper
+import com.back.motionit.helper.UserHelper
+import com.back.motionit.security.SecurityUser
+import com.back.motionit.support.BaseIntegrationTest
+import com.back.motionit.support.SecuredIntegrationTest
+import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.jayway.jsonpath.JsonPath
+import org.assertj.core.api.Assertions
+import org.junit.jupiter.api.*
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.http.MediaType
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
+import org.springframework.security.core.authority.AuthorityUtils
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+import org.springframework.test.web.servlet.result.MockMvcResultHandlers
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers
 
 @SecuredIntegrationTest
-public class ChallengeRoomControllerTest extends BaseIntegrationTest {
-
-	@Autowired
-	private MockMvc mvc;
-
-	@Autowired
-	private ChallengeRoomRepository challengeRoomRepository;
-
-	@Autowired
-	private ChallengeParticipantRepository challengeParticipantRepository;
-
-	@Autowired
-	private UserHelper userHelper;
-
-	@Autowired
-	private ChallengeRoomHelper roomHelper;
-
-	@Autowired
-	private ChallengeParticipantHelper participantHelper;
-
-	@Autowired
-	private ObjectMapper mapper;
-
-	private CreateRoomRequestBuilder createRoomRequestBuilder;
-	private User user;
-
-	SecurityUser securityUser;
-	UsernamePasswordAuthenticationToken authentication;
-
-	@BeforeEach
-	public void setUp() {
-		createRoomRequestBuilder = new CreateRoomRequestBuilder("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
-		user = userHelper.createUser();
-	}
-
-	@Nested
-	@DisplayName("POST `/api/v1/challenge/rooms` - 운동방 생성")
-	class CreateRoomTest {
-		private String baseRoomApi = "/api/v1/challenge/rooms";
-
-		@Test
-		@DisplayName("Success Create Challenge Room")
-		void successCreateRoom() throws Exception {
-			Map<String, String> params = createRoomRequestBuilder.toParamMap();
-
-			var authorities = AuthorityUtils.createAuthorityList("ROLE");
-			securityUser = new SecurityUser(user.getId(), user.getPassword(), user.getNickname(), authorities);
-			authentication =
-				new UsernamePasswordAuthenticationToken(securityUser, null, securityUser.getAuthorities());
-			SecurityContextHolder.getContext().setAuthentication(authentication);
-
-			String requestJson = mapper.writeValueAsString(Map.of(
-				"title", params.get("title"),
-				"description", params.get("description"),
-				"capacity", Integer.valueOf(params.get("capacity")),
-				"duration", Integer.valueOf(params.get("duration")),
-				"videoUrl", params.get("videoUrl"),
-				"imageFileName", params.get("imageFileName"),
-				"contentType", params.get("contentType")
-			));
-
-			ResultActions resultActions = mvc.perform(
-				post(baseRoomApi)
-					.contentType(MediaType.APPLICATION_JSON)
-					.content(requestJson)
-			).andDo(print());
-
-			resultActions
-				.andExpect(handler().handlerType(ChallengeRoomController.class))
-				.andExpect(handler().methodName("createRoom"))
-				.andExpect(jsonPath("$.resultCode").value(ChallengeRoomHttp.CREATE_ROOM_SUCCESS_CODE))
-				.andExpect(jsonPath("$.msg").value(ChallengeRoomHttp.CREATE_ROOM_SUCCESS_MESSAGE));
-
-			MvcResult mvcResult = resultActions.andReturn();
-
-			String responseJson = mvcResult.getResponse().getContentAsString();
-			String title = JsonPath.read(responseJson, "$.data.title");
-			String image = JsonPath.read(responseJson, "$.data.roomImage");
-			long id = JsonPath.<Number>read(responseJson, "$.data.id").longValue();
-
-			ChallengeRoom createdRoom = challengeRoomRepository.findById(id).orElseThrow(() ->
-				new BusinessException(CommonErrorCode.NOT_FOUND)
-			);
-
-			assertThat(title).isEqualTo(params.get("title"));
-			assertThat(createdRoom.getRoomImage()).isEqualTo(image);
-		}
-
-		@Test
-		@DisplayName("Failed with NOT FOUND USER")
-		void notFoundUserId() throws Exception {
-			Map<String, String> params = createRoomRequestBuilder.toParamMap();
-
-			Long wrongUserId = user.getId() + 1L;
-			var authorities = AuthorityUtils.createAuthorityList("ROLE");
-			securityUser = new SecurityUser(wrongUserId, user.getPassword(), user.getNickname(), authorities);
-			authentication =
-				new UsernamePasswordAuthenticationToken(securityUser, null, securityUser.getAuthorities());
-			SecurityContextHolder.getContext().setAuthentication(authentication);
-
-			String requestJson = mapper.writeValueAsString(Map.of(
-				"title", params.get("title"),
-				"description", params.get("description"),
-				"capacity", Integer.valueOf(params.get("capacity")),
-				"duration", Integer.valueOf(params.get("duration")),
-				"videoUrl", params.get("videoUrl"),
-				"imageFileName", params.get("imageFileName"),
-				"contentType", params.get("contentType")
-			));
-
-			ResultActions resultActions = mvc.perform(
-				post(baseRoomApi)
-					.contentType(MediaType.APPLICATION_JSON)
-					.content(requestJson)
-			).andDo(print());
-
-			ChallengeRoomErrorCode error = ChallengeRoomErrorCode.NOT_FOUND_USER;
-
-			resultActions
-				.andExpect(handler().handlerType(ChallengeRoomController.class))
-				.andExpect(handler().methodName("createRoom"))
-				.andExpect(status().isNotFound())
-				.andExpect(jsonPath("$.resultCode").value(error.getCode()))
-				.andExpect(jsonPath("$.msg").value(error.getMessage()));
-		}
-
-		@Test
-		@DisplayName("Auto Join as Host after Create Room")
-		void autoJoinAsHostAfterCreateRoom() throws Exception {
-			// given
-			User owner = userHelper.createUser();
-			Map<String, String> params = createRoomRequestBuilder.toParamMap();
-
-			var authorities = AuthorityUtils.createAuthorityList("ROLE_USER");
-			securityUser = new SecurityUser(owner.getId(), owner.getPassword(), owner.getNickname(), authorities);
-			authentication =
-				new UsernamePasswordAuthenticationToken(securityUser, null, securityUser.getAuthorities());
-			SecurityContextHolder.getContext().setAuthentication(authentication);
-
-			String requestJson = mapper.writeValueAsString(Map.of(
-				"title", params.get("title"),
-				"description", params.get("description"),
-				"capacity", Integer.valueOf(params.get("capacity")),
-				"duration", Integer.valueOf(params.get("duration")),
-				"videoUrl", params.get("videoUrl"),
-				"imageFileName", params.get("imageFileName"),
-				"contentType", params.get("contentType")
-			));
-
-			// when
-			MvcResult result = mvc.perform(post(baseRoomApi)
-					.contentType(MediaType.APPLICATION_JSON)
-					.content(requestJson)
-				)
-				.andExpect(jsonPath("$.resultCode").value(ChallengeRoomHttp.CREATE_ROOM_SUCCESS_CODE))
-				.andExpect(jsonPath("$.msg").value(ChallengeRoomHttp.CREATE_ROOM_SUCCESS_MESSAGE))
-				.andReturn();
-
-			// then
-			String responseJson = result.getResponse().getContentAsString();
-			Long roomId = JsonPath.<Number>read(responseJson, "$.data.id").longValue();
-			ChallengeRoom createdRoom = challengeRoomRepository.findById(roomId)
-				.orElseThrow();
-			ChallengeParticipant participant = challengeParticipantRepository
-				.findByUserAndChallengeRoom(owner, createdRoom);
-
-			assertNotNull(participant, "참가자가 조회되어야 합니다.");
-			assertThat(participant.getRole()).isEqualTo(ChallengeParticipantRole.HOST);
-		}
-	}
-
-	@Nested
-	@DisplayName("GET `/api/v1/challenge/rooms` - 운동방 전체 목록 조회")
-	class GetRoomsTest {
-		private String baseRoomApi = "/api/v1/challenge/rooms";
-
-		@Test
-		@DisplayName("운동방 목록 조회 성공, page=0 & size=20")
-		void successGetRoomsWithParams() throws Exception {
-			int page = 0;
-			int size = 20;
-
-			for (int i = 0; i < size + 1; i++) {
-				roomHelper.createChallengeRoom(user);
-			}
-
-			var authorities = AuthorityUtils.createAuthorityList("ROLE");
-			securityUser = new SecurityUser(user.getId(), user.getPassword(), user.getNickname(), authorities);
-			authentication =
-				new UsernamePasswordAuthenticationToken(securityUser, null, securityUser.getAuthorities());
-			SecurityContextHolder.getContext().setAuthentication(authentication);
-
-			ResultActions resultActions = mvc.perform(
-				get(baseRoomApi)
-					.param("page", Integer.toString(page))
-					.param("size", Integer.toString(size))
-					.contentType(MediaType.APPLICATION_JSON)
-			).andDo(print());
-
-			resultActions
-				.andExpect(handler().handlerType(ChallengeRoomController.class))
-				.andExpect(handler().methodName("getRooms"))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.resultCode").value(ChallengeRoomHttp.GET_ROOMS_SUCCESS_CODE))
-				.andExpect(jsonPath("$.msg").value(ChallengeRoomHttp.GET_ROOMS_SUCCESS_MESSAGE));
-
-			MvcResult mvcResult = resultActions.andReturn();
-			String responseJson = mvcResult.getResponse().getContentAsString();
-			Object raw = JsonPath.read(responseJson, "$.data");
-			GetRoomsResponse data = mapper.convertValue(raw,
-				new TypeReference<GetRoomsResponse>() {
-				}
-			);
-
-			assertThat(data.getRooms()).hasSizeLessThanOrEqualTo(size);
-		}
-
-		@Test
-		@DisplayName("운동방 목록 조회 성공, default 쿼리 params")
-		void successGetRoomsWithDefault() throws Exception {
-			for (int i = 0; i < 20; i++) {
-				roomHelper.createChallengeRoom(user);
-			}
-
-			var authorities = AuthorityUtils.createAuthorityList("ROLE");
-			securityUser = new SecurityUser(user.getId(), user.getPassword(), user.getNickname(), authorities);
-			authentication =
-				new UsernamePasswordAuthenticationToken(securityUser, null, securityUser.getAuthorities());
-			SecurityContextHolder.getContext().setAuthentication(authentication);
-
-			ResultActions resultActions = mvc.perform(
-				get(baseRoomApi)
-					.contentType(MediaType.APPLICATION_JSON)
-			).andDo(print());
-
-			resultActions
-				.andExpect(handler().handlerType(ChallengeRoomController.class))
-				.andExpect(handler().methodName("getRooms"))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.resultCode").value(ChallengeRoomHttp.GET_ROOMS_SUCCESS_CODE))
-				.andExpect(jsonPath("$.msg").value(ChallengeRoomHttp.GET_ROOMS_SUCCESS_MESSAGE));
-
-			MvcResult mvcResult = resultActions.andReturn();
-			String responseJson = mvcResult.getResponse().getContentAsString();
-			Object raw = JsonPath.read(responseJson, "$.data");
-			GetRoomsResponse data = mapper.convertValue(raw,
-				new TypeReference<GetRoomsResponse>() {
-				}
-			);
-
-			assertThat(data.getRooms()).hasSizeLessThanOrEqualTo(Integer.parseInt(ChallengeRoomConstants.DEFAULT_SIZE));
-		}
-	}
-
-	@Nested
-	@DisplayName("GET `/api/v1/challenge/rooms/{roomId}` - 운동방 상세 조회")
-	class GetRoomTest {
-		private String getRoomApi = "/api/v1/challenge/rooms/{roomId}";
-
-		@Test
-		@DisplayName("운동방 조회 성공")
-		void successGetRoom() throws Exception {
-			ChallengeRoom room = roomHelper.createChallengeRoom(user);
-
-			ResultActions resultActions = mvc.perform(
-				get(getRoomApi, room.getId())
-					.contentType(MediaType.APPLICATION_JSON)
-			).andDo(print());
-
-			resultActions
-				.andExpect(handler().handlerType(ChallengeRoomController.class))
-				.andExpect(handler().methodName("getRoom"))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.resultCode").value(ChallengeRoomHttp.GET_ROOM_SUCCESS_CODE))
-				.andExpect(jsonPath("$.msg").value(ChallengeRoomHttp.GET_ROOM_SUCCESS_MESSAGE))
-				.andExpect(jsonPath("$.data.id").value(room.getId()));
-		}
-
-		@Test
-		@DisplayName("운동방 조회 실패 - 잘못된 roomId")
-		void failedGetRoomWithWrongId() throws Exception {
-			ChallengeRoom room = roomHelper.createChallengeRoom(user);
-
-			ResultActions resultActions = mvc.perform(
-				get(getRoomApi, room.getId() + 1)
-					.contentType(MediaType.APPLICATION_JSON)
-			).andDo(print());
-
-			ChallengeRoomErrorCode error = ChallengeRoomErrorCode.NOT_FOUND_ROOM;
-
-			resultActions
-				.andExpect(handler().handlerType(ChallengeRoomController.class))
-				.andExpect(handler().methodName("getRoom"))
-				.andExpect(status().isNotFound())
-				.andExpect(jsonPath("$.resultCode").value(error.getCode()))
-				.andExpect(jsonPath("$.msg").value(error.getMessage()));
-		}
-	}
-
-	@Nested
-	@DisplayName("DELETE `/api/v1/challenge/rooms/{roomId}` - 운동방 삭제")
-	class DeleteRoomTest {
-		private String deleteRoomApi = "/api/v1/challenge/rooms/{roomId}";
-
-		@Test
-		@DisplayName("운동방 삭제 성공")
-		void successDeleteRoom() throws Exception {
-			var authorities = AuthorityUtils.createAuthorityList("ROLE");
-			securityUser = new SecurityUser(user.getId(), user.getPassword(), user.getNickname(), authorities);
-			authentication =
-				new UsernamePasswordAuthenticationToken(securityUser, null, securityUser.getAuthorities());
-			SecurityContextHolder.getContext().setAuthentication(authentication);
-
-			ChallengeRoom room = roomHelper.createChallengeRoom(user);
-			participantHelper.createHostParticipant(user, room);
-
-			ResultActions resultActions = mvc.perform(
-				delete(deleteRoomApi, room.getId())
-					.contentType(MediaType.APPLICATION_JSON)
-			).andDo(print());
-
-			resultActions
-				.andExpect(handler().handlerType(ChallengeRoomController.class))
-				.andExpect(handler().methodName("deleteRoom"))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.resultCode").value(ChallengeRoomHttp.DELETE_ROOM_SUCCESS_CODE))
-				.andExpect(jsonPath("$.msg").value(ChallengeRoomHttp.DELETE_ROOM_SUCCESS_MESSAGE));
-
-			assertThat(challengeRoomRepository.findById(room.getId())).isEmpty();
-
-			LocalDateTime deletedAt = challengeRoomRepository.findDeletedAtRaw(room.getId());
-			assertThat(deletedAt).isNotNull();
-		}
-
-		@Test
-		@DisplayName("운동방 삭제 실패 - 일반 참여자 권한 거부")
-		void failedDeleteRoomWithRole() throws Exception {
-			var authorities = AuthorityUtils.createAuthorityList("ROLE");
-			securityUser = new SecurityUser(user.getId(), user.getPassword(), user.getNickname(), authorities);
-			authentication =
-				new UsernamePasswordAuthenticationToken(securityUser, null, securityUser.getAuthorities());
-			SecurityContextHolder.getContext().setAuthentication(authentication);
-
-			ChallengeRoom room = roomHelper.createChallengeRoom(user);
-			participantHelper.createNormalParticipant(user, room);
-
-			ResultActions resultActions = mvc.perform(
-				delete(deleteRoomApi, room.getId())
-					.contentType(MediaType.APPLICATION_JSON)
-			).andDo(print());
-
-			ChallengeRoomErrorCode error = ChallengeRoomErrorCode.INVALID_AUTH_USER;
-
-			resultActions
-				.andExpect(handler().handlerType(ChallengeRoomController.class))
-				.andExpect(handler().methodName("deleteRoom"))
-				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.resultCode").value(error.getCode()))
-				.andExpect(jsonPath("$.msg").value(error.getMessage()));
-
-		}
-	}
-
-	@AfterEach
-	void clear() {
-		SecurityContextHolder.clearContext();
-	}
+class ChallengeRoomControllerTest : BaseIntegrationTest() {
+    @Autowired
+    lateinit var mvc: MockMvc
+
+    @Autowired
+    lateinit var challengeRoomRepository: ChallengeRoomRepository
+
+    @Autowired
+    lateinit var challengeParticipantRepository: ChallengeParticipantRepository
+
+    @Autowired
+    lateinit var userHelper: UserHelper
+
+    @Autowired
+    lateinit var roomHelper: ChallengeRoomHelper
+
+    @Autowired
+    lateinit var participantHelper: ChallengeParticipantHelper
+
+    @Autowired
+    lateinit var mapper: ObjectMapper
+
+    private lateinit var createRoomRequestBuilder: CreateRoomRequestBuilder
+    private lateinit var user: User
+
+    lateinit var securityUser: SecurityUser
+    lateinit var authentication: UsernamePasswordAuthenticationToken
+
+    @BeforeEach
+    fun setUp() {
+        createRoomRequestBuilder = CreateRoomRequestBuilder("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+        user = userHelper.createUser()
+    }
+
+    @Nested
+    @DisplayName("POST `/api/v1/challenge/rooms` - 운동방 생성")
+    internal inner class CreateRoomTest {
+        private val baseRoomApi = "/api/v1/challenge/rooms"
+
+        @Test
+        @DisplayName("Success Create Challenge Room")
+        fun successCreateRoom() {
+            val params = createRoomRequestBuilder.toParamMap()
+
+            val authorities = AuthorityUtils.createAuthorityList("ROLE")
+            securityUser = SecurityUser(user.id, user.password, user.nickname, authorities)
+            authentication =
+                UsernamePasswordAuthenticationToken(securityUser, null, securityUser.authorities)
+            SecurityContextHolder.getContext().authentication = authentication
+
+            val requestJson = mapper.writeValueAsString(
+                mapOf(
+                    "title" to params["title"],
+                    "description" to params["description"],
+                    "capacity" to params["capacity"]!!.toInt(),
+                    "duration" to params["duration"]!!.toInt(),
+                    "videoUrl" to params["videoUrl"],
+                    "imageFileName" to params["imageFileName"],
+                    "contentType" to params["contentType"],
+                )
+            )
+
+            val resultActions = mvc.perform(
+                MockMvcRequestBuilders.post(baseRoomApi)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(requestJson)
+            ).andDo(MockMvcResultHandlers.print())
+
+            resultActions
+                .andExpect(MockMvcResultMatchers.handler().handlerType(ChallengeRoomController::class.java))
+                .andExpect(MockMvcResultMatchers.handler().methodName("createRoom"))
+                .andExpect(
+                    MockMvcResultMatchers.jsonPath("$.resultCode").value(ChallengeRoomHttp.CREATE_ROOM_SUCCESS_CODE)
+                )
+                .andExpect(MockMvcResultMatchers.jsonPath("$.msg").value(ChallengeRoomHttp.CREATE_ROOM_SUCCESS_MESSAGE))
+
+            val mvcResult = resultActions.andReturn()
+
+            val responseJson = mvcResult.response.contentAsString
+            val title = JsonPath.read<String>(responseJson, "$.data.title")
+            val image = JsonPath.read<String>(responseJson, "$.data.roomImage")
+            val id = JsonPath.read<Number>(responseJson, "$.data.id").toLong()
+
+            val createdRoom =
+                challengeRoomRepository.findById(id).orElseThrow { BusinessException(CommonErrorCode.NOT_FOUND) }
+
+            Assertions.assertThat(title).isEqualTo(params["title"])
+            Assertions.assertThat(createdRoom.roomImage).isEqualTo(image)
+        }
+
+        @Test
+        @DisplayName("Failed with NOT FOUND USER")
+        fun notFoundUserId() {
+            val params = createRoomRequestBuilder.toParamMap()
+
+            val wrongUserId = user.id!! + 1L
+            val authorities = AuthorityUtils.createAuthorityList("ROLE")
+            securityUser = SecurityUser(wrongUserId, user.password, user.nickname, authorities)
+            authentication =
+                UsernamePasswordAuthenticationToken(securityUser, null, securityUser.authorities)
+            SecurityContextHolder.getContext().authentication = authentication
+
+            val requestJson = mapper.writeValueAsString(
+                mapOf(
+                    "title" to params["title"],
+                    "description" to params["description"],
+                    "capacity" to params["capacity"]!!.toInt(),
+                    "duration" to params["duration"]!!.toInt(),
+                    "videoUrl" to params["videoUrl"],
+                    "imageFileName" to params["imageFileName"],
+                    "contentType" to params["contentType"],
+                )
+            )
+
+            val resultActions = mvc.perform(
+                MockMvcRequestBuilders.post(baseRoomApi)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(requestJson)
+            ).andDo(MockMvcResultHandlers.print())
+
+            val error = ChallengeRoomErrorCode.NOT_FOUND_USER
+
+            resultActions
+                .andExpect(MockMvcResultMatchers.handler().handlerType(ChallengeRoomController::class.java))
+                .andExpect(MockMvcResultMatchers.handler().methodName("createRoom"))
+                .andExpect(MockMvcResultMatchers.status().isNotFound())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.resultCode").value(error.code))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.msg").value(error.message))
+        }
+
+        @Test
+        @DisplayName("Auto Join as Host after Create Room")
+        fun autoJoinAsHostAfterCreateRoom() {
+            // given
+            val owner = userHelper.createUser()
+            val params = createRoomRequestBuilder.toParamMap()
+
+            val authorities = AuthorityUtils.createAuthorityList("ROLE_USER")
+            securityUser = SecurityUser(owner.id, owner.password, owner.nickname, authorities)
+            authentication =
+                UsernamePasswordAuthenticationToken(securityUser, null, securityUser.authorities)
+            SecurityContextHolder.getContext().authentication = authentication
+
+            val requestJson = mapper.writeValueAsString(
+                mapOf(
+                    "title" to params["title"],
+                    "description" to params["description"],
+                    "capacity" to params["capacity"]!!.toInt(),
+                    "duration" to params["duration"]!!.toInt(),
+                    "videoUrl" to params["videoUrl"],
+                    "imageFileName" to params["imageFileName"],
+                    "contentType" to params["contentType"],
+                )
+            )
+
+            // when
+            val result = mvc.perform(
+                MockMvcRequestBuilders.post(baseRoomApi)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(requestJson)
+            )
+                .andExpect(
+                    MockMvcResultMatchers.jsonPath("$.resultCode").value(ChallengeRoomHttp.CREATE_ROOM_SUCCESS_CODE)
+                )
+                .andExpect(MockMvcResultMatchers.jsonPath("$.msg").value(ChallengeRoomHttp.CREATE_ROOM_SUCCESS_MESSAGE))
+                .andReturn()
+
+            // then
+            val responseJson = result.response.contentAsString
+            val roomId = JsonPath.read<Number>(responseJson, "$.data.id").toLong()
+            val createdRoom = challengeRoomRepository.findById(roomId)
+                .orElseThrow()
+            val participant = challengeParticipantRepository
+                .findByUserAndChallengeRoom(owner, createdRoom)
+
+            org.junit.jupiter.api.Assertions.assertNotNull(participant, "참가자가 조회되어야 합니다.")
+            Assertions.assertThat(participant!!.role).isEqualTo(ChallengeParticipantRole.HOST)
+        }
+    }
+
+    @Nested
+    @DisplayName("GET `/api/v1/challenge/rooms` - 운동방 전체 목록 조회")
+    internal inner class GetRoomsTest {
+        private val baseRoomApi = "/api/v1/challenge/rooms"
+
+        @Test
+        @DisplayName("운동방 목록 조회 성공, page=0 & size=20")
+        fun successGetRoomsWithParams() {
+            val page = 0
+            val size = 20
+
+            for (i in 0 until size + 1) {
+                roomHelper.createChallengeRoom(user)
+            }
+
+            val authorities = AuthorityUtils.createAuthorityList("ROLE")
+            securityUser = SecurityUser(user.id, user.password, user.nickname, authorities)
+            authentication =
+                UsernamePasswordAuthenticationToken(securityUser, null, securityUser.authorities)
+            SecurityContextHolder.getContext().authentication = authentication
+
+            val resultActions = mvc.perform(
+                MockMvcRequestBuilders.get(baseRoomApi)
+                    .param("page", page.toString())
+                    .param("size", size.toString())
+                    .contentType(MediaType.APPLICATION_JSON)
+            ).andDo(MockMvcResultHandlers.print())
+
+            resultActions
+                .andExpect(MockMvcResultMatchers.handler().handlerType(ChallengeRoomController::class.java))
+                .andExpect(MockMvcResultMatchers.handler().methodName("getRooms"))
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andExpect(
+                    MockMvcResultMatchers.jsonPath("$.resultCode").value(ChallengeRoomHttp.GET_ROOMS_SUCCESS_CODE)
+                )
+                .andExpect(MockMvcResultMatchers.jsonPath("$.msg").value(ChallengeRoomHttp.GET_ROOMS_SUCCESS_MESSAGE))
+
+            val mvcResult = resultActions.andReturn()
+            val responseJson = mvcResult.response.contentAsString
+            val raw = JsonPath.read<Any>(responseJson, "$.data")
+            val data = mapper.convertValue(raw,
+                object : TypeReference<GetRoomsResponse>() {
+                }
+            )
+
+            Assertions.assertThat(data.rooms).hasSizeLessThanOrEqualTo(size)
+        }
+
+        @Test
+        @DisplayName("운동방 목록 조회 성공, default 쿼리 params")
+        fun successGetRoomsWithDefault() {
+            for (i in 0..19) {
+                roomHelper.createChallengeRoom(user)
+            }
+
+            val authorities = AuthorityUtils.createAuthorityList("ROLE")
+            securityUser = SecurityUser(user.id, user.password, user.nickname, authorities)
+            authentication =
+                UsernamePasswordAuthenticationToken(securityUser, null, securityUser.authorities)
+            SecurityContextHolder.getContext().authentication = authentication
+
+            val resultActions = mvc.perform(
+                MockMvcRequestBuilders.get(baseRoomApi)
+                    .contentType(MediaType.APPLICATION_JSON)
+            ).andDo(MockMvcResultHandlers.print())
+
+            resultActions
+                .andExpect(MockMvcResultMatchers.handler().handlerType(ChallengeRoomController::class.java))
+                .andExpect(MockMvcResultMatchers.handler().methodName("getRooms"))
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andExpect(
+                    MockMvcResultMatchers.jsonPath("$.resultCode").value(ChallengeRoomHttp.GET_ROOMS_SUCCESS_CODE)
+                )
+                .andExpect(MockMvcResultMatchers.jsonPath("$.msg").value(ChallengeRoomHttp.GET_ROOMS_SUCCESS_MESSAGE))
+
+            val mvcResult = resultActions.andReturn()
+            val responseJson = mvcResult.response.contentAsString
+            val raw = JsonPath.read<Any>(responseJson, "$.data")
+            val data = mapper.convertValue(raw,
+                object : TypeReference<GetRoomsResponse>() {
+                }
+            )
+
+            Assertions.assertThat(data.rooms).hasSizeLessThanOrEqualTo(ChallengeRoomConstants.DEFAULT_SIZE.toInt())
+        }
+    }
+
+    @Nested
+    @DisplayName("GET `/api/v1/challenge/rooms/{roomId}` - 운동방 상세 조회")
+    internal inner class GetRoomTest {
+        private val getRoomApi = "/api/v1/challenge/rooms/{roomId}"
+
+        @Test
+        @DisplayName("운동방 조회 성공")
+        fun successGetRoom() {
+            val room = roomHelper.createChallengeRoom(user)
+
+            val resultActions = mvc.perform(
+                MockMvcRequestBuilders.get(getRoomApi, room.id)
+                    .contentType(MediaType.APPLICATION_JSON)
+            ).andDo(MockMvcResultHandlers.print())
+
+            resultActions
+                .andExpect(MockMvcResultMatchers.handler().handlerType(ChallengeRoomController::class.java))
+                .andExpect(MockMvcResultMatchers.handler().methodName("getRoom"))
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andExpect(
+                    MockMvcResultMatchers.jsonPath("$.resultCode").value(ChallengeRoomHttp.GET_ROOM_SUCCESS_CODE)
+                )
+                .andExpect(MockMvcResultMatchers.jsonPath("$.msg").value(ChallengeRoomHttp.GET_ROOM_SUCCESS_MESSAGE))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.data.id").value(room.id))
+        }
+
+        @Test
+        @DisplayName("운동방 조회 실패 - 잘못된 roomId")
+        fun failedGetRoomWithWrongId() {
+            val room = roomHelper.createChallengeRoom(user)
+
+            val resultActions = mvc.perform(
+                MockMvcRequestBuilders.get(getRoomApi, room.id!! + 1)
+                    .contentType(MediaType.APPLICATION_JSON)
+            ).andDo(MockMvcResultHandlers.print())
+
+            val error = ChallengeRoomErrorCode.NOT_FOUND_ROOM
+
+            resultActions
+                .andExpect(MockMvcResultMatchers.handler().handlerType(ChallengeRoomController::class.java))
+                .andExpect(MockMvcResultMatchers.handler().methodName("getRoom"))
+                .andExpect(MockMvcResultMatchers.status().isNotFound())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.resultCode").value(error.code))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.msg").value(error.message))
+        }
+    }
+
+    @Nested
+    @DisplayName("DELETE `/api/v1/challenge/rooms/{roomId}` - 운동방 삭제")
+    internal inner class DeleteRoomTest {
+        private val deleteRoomApi = "/api/v1/challenge/rooms/{roomId}"
+
+        @Test
+        @DisplayName("운동방 삭제 성공")
+        fun successDeleteRoom() {
+            val authorities = AuthorityUtils.createAuthorityList("ROLE")
+            securityUser = SecurityUser(user.id, user.password, user.nickname, authorities)
+            authentication =
+                UsernamePasswordAuthenticationToken(securityUser, null, securityUser.authorities)
+            SecurityContextHolder.getContext().authentication = authentication
+
+            val room = roomHelper.createChallengeRoom(user)
+            participantHelper.createHostParticipant(user, room)
+
+            val resultActions = mvc.perform(
+                MockMvcRequestBuilders.delete(deleteRoomApi, room.id)
+                    .contentType(MediaType.APPLICATION_JSON)
+            ).andDo(MockMvcResultHandlers.print())
+
+            resultActions
+                .andExpect(MockMvcResultMatchers.handler().handlerType(ChallengeRoomController::class.java))
+                .andExpect(MockMvcResultMatchers.handler().methodName("deleteRoom"))
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andExpect(
+                    MockMvcResultMatchers.jsonPath("$.resultCode").value(ChallengeRoomHttp.DELETE_ROOM_SUCCESS_CODE)
+                )
+                .andExpect(MockMvcResultMatchers.jsonPath("$.msg").value(ChallengeRoomHttp.DELETE_ROOM_SUCCESS_MESSAGE))
+
+            Assertions.assertThat(challengeRoomRepository.findById(room.id!!)).isEmpty()
+
+            val deletedAt = challengeRoomRepository.findDeletedAtRaw(room.id!!)
+            Assertions.assertThat(deletedAt).isNotNull()
+        }
+
+        @Test
+        @DisplayName("운동방 삭제 실패 - 일반 참여자 권한 거부")
+        fun failedDeleteRoomWithRole() {
+            val authorities = AuthorityUtils.createAuthorityList("ROLE")
+            securityUser = SecurityUser(user.id, user.password, user.nickname, authorities)
+            authentication =
+                UsernamePasswordAuthenticationToken(securityUser, null, securityUser.authorities)
+            SecurityContextHolder.getContext().authentication = authentication
+
+            val room = roomHelper.createChallengeRoom(user)
+            participantHelper.createNormalParticipant(user, room)
+
+            val resultActions = mvc.perform(
+                MockMvcRequestBuilders.delete(deleteRoomApi, room.id)
+                    .contentType(MediaType.APPLICATION_JSON)
+            ).andDo(MockMvcResultHandlers.print())
+
+            val error = ChallengeRoomErrorCode.INVALID_AUTH_USER
+
+            resultActions
+                .andExpect(MockMvcResultMatchers.handler().handlerType(ChallengeRoomController::class.java))
+                .andExpect(MockMvcResultMatchers.handler().methodName("deleteRoom"))
+                .andExpect(MockMvcResultMatchers.status().isBadRequest())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.resultCode").value(error.code))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.msg").value(error.message))
+        }
+    }
+
+    @AfterEach
+    fun clear() {
+        SecurityContextHolder.clearContext()
+    }
 }

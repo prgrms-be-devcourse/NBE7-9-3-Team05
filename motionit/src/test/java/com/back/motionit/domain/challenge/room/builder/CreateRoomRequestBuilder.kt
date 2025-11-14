@@ -1,91 +1,33 @@
-package com.back.motionit.domain.challenge.room.builder;
+package com.back.motionit.domain.challenge.room.builder
 
-import static org.springframework.util.StringUtils.*;
+import net.datafaker.Faker
+import org.springframework.util.StringUtils.truncate
+import java.util.*
 
-import java.util.LinkedHashMap;
-import java.util.Locale;
-import java.util.Map;
+class CreateRoomRequestBuilder(videoUrl: String?) {
+    companion object {
+        private val faker = Faker(Locale("ko"))
+    }
 
-import net.datafaker.Faker;
+    private var title: String = truncate(faker.lorem().characters(8, 30, true), 30)
+    private var description: String = truncate(faker.lorem().characters(20, 100, true), 100)
+    private var capacity: Int = faker.number().numberBetween(2, 100)
+    private var duration: Int = faker.number().numberBetween(3, 30)
+    private var videoUrl: String =
+        videoUrl ?: "https://youtube.com/watch?v=${faker.regexify("[A-Za-z0-9_-]{11}")}"
 
-public class CreateRoomRequestBuilder {
+    private var imageFileName: String = faker.file().fileName(null, null, "png", null)
 
-	private static final Faker faker = new Faker(new Locale("ko"));
-	private String title;
-	private String description;
-	private int capacity;
-	private int duration;
-	private String videoUrl;
+    private var contentType = "image/png"
 
-	private String imageFileName;
-
-	private String contentType;
-
-	public CreateRoomRequestBuilder(String videoUrl) {
-		this.title = truncate(faker.lorem().characters(8, 30, true), 30);
-		this.description = truncate(faker.lorem().characters(20, 100, true), 100);
-		this.capacity = faker.number().numberBetween(2, 100);
-		this.duration = faker.number().numberBetween(3, 30);
-		this.videoUrl =
-			videoUrl != null ? videoUrl : "https://youtube.com/watch?v=" + faker.regexify("[A-Za-z0-9_-]{11}");
-		this.imageFileName = faker.file().fileName(null, null, "png", null);
-		this.contentType = "image/png";
-	}
-
-	public Map<String, String> toParamMap() {
-		Map<String, String> map = new LinkedHashMap<>();
-		map.put("title", title);
-		map.put("description", description);
-		map.put("capacity", String.valueOf(capacity));
-		map.put("duration", String.valueOf(duration));
-		map.put("videoUrl", videoUrl);
-		map.put("imageFileName", imageFileName);
-		map.put("contentType", contentType);
-		return map;
-	}
-
-	public CreateRoomRequestBuilder title(String title) {
-		this.title = title;
-		return this;
-	}
-
-	public CreateRoomRequestBuilder description(String description) {
-		this.description = description;
-		return this;
-	}
-
-	public CreateRoomRequestBuilder capacity(int capacity) {
-		this.capacity = capacity;
-		return this;
-	}
-
-	public CreateRoomRequestBuilder duration(int duration) {
-		this.duration = duration;
-		return this;
-	}
-
-	public CreateRoomRequestBuilder videoUrl(String videoUrl) {
-		this.videoUrl = videoUrl;
-		return this;
-	}
-
-	public String getTitle() {
-		return title;
-	}
-
-	public String getDescription() {
-		return description;
-	}
-
-	public int getCapacity() {
-		return capacity;
-	}
-
-	public int getDuration() {
-		return duration;
-	}
-
-	public String getVideoUrl() {
-		return videoUrl;
-	}
+    fun toParamMap(): Map<String, String> =
+        linkedMapOf(
+            "title" to title,
+            "description" to description,
+            "capacity" to capacity.toString(),
+            "duration" to duration.toString(),
+            "videoUrl" to videoUrl,
+            "imageFileName" to imageFileName,
+            "contentType" to contentType
+        )
 }
