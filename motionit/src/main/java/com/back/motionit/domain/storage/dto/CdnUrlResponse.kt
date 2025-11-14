@@ -1,7 +1,6 @@
-package com.back.motionit.domain.storage.dto;
+package com.back.motionit.domain.storage.dto
 
-public record CdnUrlResponse(
-	String objectKey,
-	String cdnUrl
-) {
-}
+data class CdnUrlResponse(
+    val objectKey: String,
+    val cdnUrl: String
+)

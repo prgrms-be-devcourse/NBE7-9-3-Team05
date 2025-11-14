@@ -1,7 +1,6 @@
-package com.back.motionit.domain.storage.dto;
+package com.back.motionit.domain.storage.dto
 
-public record UploadUrlResponse(
-	String objectKey,
-	String uploadUrl
-) {
-}
+data class UploadUrlResponse(
+    val objectKey: String,
+    val uploadUrl: String
+)

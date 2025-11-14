@@ -1,10 +1,13 @@
-package com.back.motionit.domain.storage.dto;
+package com.back.motionit.domain.storage.dto
 
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotBlank
 
-public record CreateUploadUrlRequest(
-	@NotBlank String originalFileName,
-	@NotBlank String contentType,
-	String objectKey
-) {
-}
+data class CreateUploadUrlRequest(
+	@field:NotBlank
+	val originalFileName: String,
+
+	@field:NotBlank
+	val contentType: String,
+
+	val objectKey: String
+)
