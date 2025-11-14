@@ -6,14 +6,20 @@ on:
     paths:
       - "motionit/**"
       - ".github/workflows/backend-cd.yml"
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "motionit/**"
+      - ".github/workflows/backend-cd.yml"
   workflow_dispatch: # 수동 트리거 허용
 
 permissions:
   contents: read
+  pull-requests: write  # PR 코멘트를 위해 추가
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted  # ← Self-hosted runner 사용
 
     defaults:
       run:
@@ -22,12 +28,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set up Java 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -55,18 +55,9 @@ jobs:
           echo "  - ${IMAGE_NAME}:latest"
           echo "  - ${IMAGE_NAME}:${TIMESTAMP}-${SHORT_SHA}"
 
-      - name: Copy deploy script to EC2
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "motionit/scripts/deploy.sh"
-          target: "/home/ubuntu"
-          strip_components: 2
-
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Deploy Application (Blue-Green)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        working-directory: motionit
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DB_USERNAME: ${{ secrets.DB_USERNAME }}
@@ -83,34 +74,54 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
           KAKAO_CLIENT_ID: ${{ secrets.KAKAO_CLIENT_ID }}
+        run: |
+          chmod +x scripts/deploy-blue-green.sh
+          ./scripts/deploy-blue-green.sh
+
+      - name: Test Build (PR Only)
+        if: github.event_name == 'pull_request'
+        working-directory: motionit
+        run: |
+          echo "🔍 PR 배포 테스트 - Docker 이미지 빌드 확인"
+          echo "✅ Docker 이미지가 정상적으로 빌드되고 Push되었습니다."
+          echo "✅ Self-hosted runner 환경에서 실행 확인"
+          echo ""
+          echo "📋 배포 체크리스트:"
+          echo "  - Docker build: ✅"
+          echo "  - Docker push: ✅"
+          echo "  - Runner 환경: ✅"
+          echo ""
+          echo "⚠️  실제 배포는 main 브랜치 merge 후 실행됩니다."
+
+      - name: Comment PR (Test Result)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          command_timeout: 5m
-          envs: DATABASE_URL,DB_USERNAME,DB_PASSWORD,AWS_ACCESS_KEY,AWS_SECRET_KEY,AWS_S3_BUCKET_NAME,AWS_CLOUDFRONT_DOMAIN,AWS_CLOUDFRONT_KEY_ID,AWS_CLOUDFRONT_PRIVATE_KEY_PATH,JWT_SECRET,JWT_ACCESS_TOKEN_EXPIRATION,JWT_REFRESH_TOKEN_EXPIRATION,OPENAI_API_KEY,YOUTUBE_API_KEY,KAKAO_CLIENT_ID
           script: |
-            cd /home/ubuntu
-            chmod +x deploy.sh
+            const message = `## 🚀 배포 준비 완료
 
-            # 환경변수를 export하여 deploy.sh에서 사용 가능하게 함
-            export DATABASE_URL="${DATABASE_URL}"
-            export DB_USERNAME="${DB_USERNAME}"
-            export DB_PASSWORD="${DB_PASSWORD}"
-            export AWS_ACCESS_KEY="${AWS_ACCESS_KEY}"
-            export AWS_SECRET_KEY="${AWS_SECRET_KEY}"
-            export AWS_S3_BUCKET_NAME="${AWS_S3_BUCKET_NAME}"
-            export AWS_CLOUDFRONT_DOMAIN="${AWS_CLOUDFRONT_DOMAIN}"
-            export AWS_CLOUDFRONT_KEY_ID="${AWS_CLOUDFRONT_KEY_ID}"
-            export AWS_CLOUDFRONT_PRIVATE_KEY_PATH="${AWS_CLOUDFRONT_PRIVATE_KEY_PATH}"
-            export JWT_SECRET="${JWT_SECRET}"
-            export JWT_ACCESS_TOKEN_EXPIRATION="${JWT_ACCESS_TOKEN_EXPIRATION}"
-            export JWT_REFRESH_TOKEN_EXPIRATION="${JWT_REFRESH_TOKEN_EXPIRATION}"
-            export OPENAI_API_KEY="${OPENAI_API_KEY}"
-            export YOUTUBE_API_KEY="${YOUTUBE_API_KEY}"
-            export KAKAO_CLIENT_ID="${KAKAO_CLIENT_ID}"
+            ### ✅ 배포 전 체크 완료
+            - Docker 이미지 빌드: **성공**
+            - Docker Hub Push: **성공**
+            - Self-hosted runner: **정상**
 
-            ./deploy.sh
+            ### 📦 배포 대상
+            - Image: \`minibrb/motionit-backend:latest\`
+            - Runner: \`self-hosted\`
+            - 배포 방식: \`Blue-Green\`
+
+            ### ⏭️ 다음 단계
+            이 PR을 \`main\` 브랜치에 merge하면 자동으로 프로덕션 배포가 시작됩니다.
+
+            ⚠️ **주의**: Main merge 시 실제 서버에 배포됩니다!
+            `;
+
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: message
+            });
 
       - name: Deployment Success
         if: success()
