@@ -20,10 +20,7 @@ import com.back.motionit.security.SecurityUser
 import com.back.motionit.support.BaseIntegrationTest
 import com.back.motionit.support.SecuredIntegrationTest
 import com.fasterxml.jackson.databind.ObjectMapper
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.DisplayName
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.MediaType
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
@@ -100,7 +97,7 @@ class ChallengeMissionsStatusControllerTest : BaseIntegrationTest() {
     @Test
     @DisplayName("POST /rooms/{roomId}/missions/complete - 미션 완료 성공")
     fun completeMissionSuccess() {
-        val request = ChallengeMissionCompleteRequest(video.id)
+        val request = ChallengeMissionCompleteRequest(video.id!!)
 
         mvc.perform(
             MockMvcRequestBuilders.post("/api/v1/challenge/rooms/{roomId}/missions/complete", room.id)
@@ -120,12 +117,15 @@ class ChallengeMissionsStatusControllerTest : BaseIntegrationTest() {
     @DisplayName("미션 완료 실패 - 이미 완료된 미션")
     fun completeMission_alreadyCompleted() {
         val mission = challengeMissionStatusRepository
-            .findByParticipantIdAndMissionDate(participant.id, today)
-            .orElseThrow()
+            .findByParticipantIdAndMissionDate(participant.id!!, today)
+
+
+        assertNotNull(mission, "테스트 미션 초기화 실패.")
+
         mission.completeMission()
         challengeMissionStatusRepository.save(mission)
 
-        val request = ChallengeMissionCompleteRequest(video.id)
+        val request = ChallengeMissionCompleteRequest(video.id!!)
 
         mvc.perform(
             MockMvcRequestBuilders.post("/api/v1/challenge/rooms/{roomId}/missions/complete", room.id)

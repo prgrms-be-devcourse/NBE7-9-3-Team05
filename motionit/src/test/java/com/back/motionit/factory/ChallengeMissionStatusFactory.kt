@@ -13,13 +13,9 @@ object ChallengeMissionStatusFactory : BaseFactory() {
      */
     fun fakeMission(
         participant: ChallengeParticipant,
-        missionDate: LocalDate? = LocalDate.now(),
+        missionDate: LocalDate = LocalDate.now(),
         completed: Boolean = false
     ): ChallengeMissionStatus {
-        return ChallengeMissionStatus.builder()
-            .participant(participant)
-            .missionDate(missionDate)
-            .completed(completed)
-            .build()
+        return ChallengeMissionStatus.create(participant, missionDate, completed)
     }
 }
