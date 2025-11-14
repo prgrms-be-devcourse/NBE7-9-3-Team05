@@ -47,7 +47,7 @@ class CustomOAuth2LoginSuccessHandlerTest {
 			List.of(new SimpleGrantedAuthority("ROLE_USER"))
 		);
 
-		UsernamePasswordAuthenticationToken authentication =
+		Authentication authentication =
 			new UsernamePasswordAuthenticationToken(securityUser, null, securityUser.getAuthorities());
 
 		MockHttpServletRequest request = new MockHttpServletRequest();
@@ -61,8 +61,10 @@ class CustomOAuth2LoginSuccessHandlerTest {
 		request.setParameter("state", encodedState);
 
 		JwtTokenDto tokens = JwtTokenDto.builder()
+			.grantType("Bearer")
 			.accessToken("accessABC")
 			.refreshToken("refreshXYZ")
+			.accessTokenExpiresIn(3600L)
 			.build();
 
 		given(socialAuthService.generateTokensById(userId))
@@ -72,12 +74,9 @@ class CustomOAuth2LoginSuccessHandlerTest {
 		handler.onAuthenticationSuccess(request, response, authentication);
 
 		// then
-
 		verify(socialAuthService).generateTokensById(userId);
-
 		verify(requestContext).setCookie("accessToken", "accessABC");
 		verify(requestContext).setCookie("refreshToken", "refreshXYZ");
-
 		verify(requestContext).sendRedirect(redirectUrl);
 	}
 
@@ -104,8 +103,10 @@ class CustomOAuth2LoginSuccessHandlerTest {
 		MockHttpServletResponse response = new MockHttpServletResponse();
 
 		JwtTokenDto tokens = JwtTokenDto.builder()
+			.grantType("Bearer")
 			.accessToken("ATK")
 			.refreshToken("RTK")
+			.accessTokenExpiresIn(3600L)
 			.build();
 
 		given(socialAuthService.generateTokensById(userId))
