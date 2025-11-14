@@ -1,22 +1,20 @@
-package com.back.motionit.domain.user.repository;
+package com.back.motionit.domain.user.repository
 
-import java.util.Optional;
+import com.back.motionit.domain.user.entity.User
+import org.springframework.data.jpa.repository.JpaRepository
+import java.util.Optional
 
-import org.springframework.data.jpa.repository.JpaRepository;
+interface UserRepository : JpaRepository<User, Long> {
 
-import com.back.motionit.domain.user.entity.User;
+    fun findByEmail(email: String?): Optional<User>
 
-public interface UserRepository extends JpaRepository<User, Long> {
+    fun findByKakaoId(kakaoId: Long?): Optional<User>
 
-	Optional<User> findByEmail(String email);
+    fun findByNickname(nickname: String?): Optional<User>
 
-	Optional<User> findByKakaoId(Long kakaoId);
+    fun findByRefreshToken(refreshToken: String?): Optional<User>
 
-	Optional<User> findByNickname(String nickname);
+    fun existsByEmail(email: String?): Boolean
 
-	Optional<User> findByRefreshToken(String refreshToken);
-
-	boolean existsByEmail(String email);
-
-	boolean existsByNickname(String nickname);
+    fun existsByNickname(nickname: String?): Boolean
 }
