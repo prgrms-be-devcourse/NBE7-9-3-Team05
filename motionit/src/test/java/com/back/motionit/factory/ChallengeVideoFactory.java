@@ -13,30 +13,30 @@ public final class ChallengeVideoFactory extends BaseFactory {
 	}
 
 	public static ChallengeVideo fakeChallengeVideo(User user, ChallengeRoom room) {
-		return ChallengeVideo.builder()
-			.challengeRoom(room)
-			.user(user)
-			.youtubeVideoId(generateYoutubeVideoId())
-			.title(faker.lorem().sentence(3))
-			.thumbnailUrl(faker.internet().url())
-			.duration(faker.number().numberBetween(30, 600)) // 30초~10분
-			.uploadDate(LocalDate.now())
-			.isTodayMission(true)
-			.build();
+		return ChallengeVideo.fake(
+			room,
+			user,
+			generateYoutubeVideoId(),
+			faker.lorem().sentence(3),
+			faker.internet().url(),
+			faker.number().numberBetween(30, 600),
+			LocalDate.now(),
+			true
+		);
 	}
 
 	// 오늘 이전에 업로드된 영상 생성
 	public static ChallengeVideo fakeOldVideo(User user, ChallengeRoom room) {
-		return ChallengeVideo.builder()
-			.challengeRoom(room)
-			.user(user)
-			.youtubeVideoId(generateYoutubeVideoId())
-			.title(faker.lorem().sentence(3))
-			.thumbnailUrl(faker.internet().url())
-			.duration(faker.number().numberBetween(30, 600))
-			.uploadDate(LocalDate.now().minusDays(1))
-			.isTodayMission(false)
-			.build();
+		return ChallengeVideo.fake(
+			room,
+			user,
+			generateYoutubeVideoId(),
+			faker.lorem().sentence(3),
+			faker.internet().url(),
+			faker.number().numberBetween(30, 600),
+			LocalDate.now().minusDays(1),
+			false
+		);
 	}
 
 	private static String generateYoutubeVideoId() {

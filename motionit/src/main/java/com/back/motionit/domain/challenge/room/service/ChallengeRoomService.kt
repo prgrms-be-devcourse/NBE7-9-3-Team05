@@ -73,7 +73,7 @@ class ChallengeRoomService(
 
         // 방장 자동 참가 처리, 여기서 실패시 방 생성도 롤백 처리됨
         autoJoinAsHost(createdRoom)
-        videoService.uploadChallengeVideo(userId, createdRoom.id, input.videoUrl)
+        videoService.uploadChallengeVideo(userId, createdRoom.id!!, input.videoUrl)
 
         uploadUrl = if (s3 != null && StringUtils.hasText(objectKey)) {
             s3.createUploadUrl(objectKey, input.contentType)

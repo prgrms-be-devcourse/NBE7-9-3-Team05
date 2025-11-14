@@ -25,6 +25,7 @@ import com.back.motionit.domain.challenge.room.entity.ChallengeRoom;
 import com.back.motionit.domain.challenge.room.repository.ChallengeRoomRepository;
 import com.back.motionit.domain.challenge.video.entity.ChallengeVideo;
 import com.back.motionit.domain.challenge.video.entity.OpenStatus;
+import com.back.motionit.domain.challenge.video.external.youtube.dto.YoutubeVideoMetadata;
 import com.back.motionit.domain.challenge.video.repository.ChallengeVideoRepository;
 import com.back.motionit.domain.user.entity.LoginType;
 import com.back.motionit.domain.user.entity.User;
@@ -146,16 +147,23 @@ public class PerfDataInitializer {
 
 			// 6️⃣ 오늘의 영상 1개씩 생성
 			List<ChallengeVideo> todayVideos = rooms.stream()
-				.map(r -> challengeVideoRepository.save(ChallengeVideo.builder()
-					.challengeRoom(r)
-					.user(host)
-					.youtubeVideoId("2fpek3wzSZo")
-					.title("오늘의 퍼포먼스 테스트 영상 - Room " + r.getId())
-					.thumbnailUrl("https://i.ytimg.com/vi/2fpek3wzSZo/hqdefault.jpg")
-					.duration(3528)
-					.uploadDate(LocalDate.now())
-					.isTodayMission(true)
-					.build()))
+				.map(r -> {
+					YoutubeVideoMetadata metadata = new YoutubeVideoMetadata(
+						"2fpek3wzSZo",
+						"오늘의 퍼포먼스 테스트 영상 - Room " + r.getId(),
+						"https://i.ytimg.com/vi/2fpek3wzSZo/hqdefault.jpg",
+						3528
+					);
+
+					ChallengeVideo video = ChallengeVideo.of(
+						r,
+						host,
+						metadata,
+						true
+					);
+
+					return challengeVideoRepository.save(video);
+				})
 				.toList();
 
 			// 7️⃣ 오늘 미션 상태 (전원)
