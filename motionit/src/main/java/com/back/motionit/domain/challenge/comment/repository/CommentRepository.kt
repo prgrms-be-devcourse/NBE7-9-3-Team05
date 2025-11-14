@@ -1,41 +1,55 @@
-package com.back.motionit.domain.challenge.comment.repository;
+package com.back.motionit.domain.challenge.comment.repository
 
-import java.util.Optional;
+import com.back.motionit.domain.challenge.comment.entity.Comment
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
+import org.springframework.data.jpa.repository.EntityGraph
+import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
+import java.util.*
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.EntityGraph;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
+interface CommentRepository : JpaRepository<Comment, Long> {
 
-import com.back.motionit.domain.challenge.comment.entity.Comment;
+    @Query(
+        """
+        select c
+        from Comment c
+        where c.challengeRoom.id = :roomId
+          and c.deletedAt is null
+        order by c.createDate desc
+        """
+    )
+    fun findActiveByRoomId(
+        @Param("roomId") roomId: Long,
+        pageable: Pageable,
+    ): Page<Comment>
 
-public interface CommentRepository extends JpaRepository<Comment, Long> {
+    @EntityGraph(attributePaths = ["user"])
+    @Query(
+        """
+        select c
+        from Comment c
+        where c.challengeRoom.id = :roomId
+          and c.deletedAt is null
+        order by c.createDate desc
+        """
+    )
+    fun findActiveByRoomIdWithAuthor(
+        @Param("roomId") roomId: Long,
+        pageable: Pageable,
+    ): Page<Comment>
 
-	@Query("""
-			select c
-			from Comment c
-			where c.challengeRoom.id = :roomId
-				and c.deletedAt is null
-			order by c.createDate desc
-		""")
-	Page<Comment> findActiveByRoomId(@Param("roomId") Long roomId, Pageable pageable);
+    fun findByIdAndChallengeRoom_Id(
+        commentId: Long,
+        roomId: Long,
+    ): Optional<Comment>
 
-	@EntityGraph(attributePaths = "user")
-	@Query("""
-			select c
-			from Comment c
-			where c.challengeRoom.id = :roomId
-				and c.deletedAt is null
-			order by c.createDate desc
-		""")
-	Page<Comment> findActiveByRoomIdWithAuthor(@Param("roomId") Long roomId, Pageable pageable);
+    @EntityGraph(attributePaths = ["user"])
+    fun findWithUserById(id: Long): Optional<Comment>
 
-	Optional<Comment> findByIdAndChallengeRoom_Id(Long commentId, Long roomId);
-
-	@EntityGraph(attributePaths = "user")
-	Optional<Comment> findWithUserById(Long id);
-
-	Optional<Comment> findByIdAndChallengeRoom_IdAndDeletedAtIsNull(Long commentId, Long roomId);
+    fun findByIdAndChallengeRoom_IdAndDeletedAtIsNull(
+        commentId: Long,
+        roomId: Long,
+    ): Optional<Comment>
 }
