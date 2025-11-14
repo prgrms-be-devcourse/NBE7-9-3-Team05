@@ -1,184 +1,148 @@
-package com.back.motionit.domain.challenge.mission.service;
+package com.back.motionit.domain.challenge.mission.service
 
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import com.back.motionit.domain.challenge.mission.entity.ChallengeMissionStatus
+import com.back.motionit.domain.challenge.mission.repository.ChallengeMissionStatusRepository
+import com.back.motionit.domain.challenge.participant.repository.ChallengeParticipantRepository
+import com.back.motionit.domain.challenge.validator.ChallengeAuthValidator
+import com.back.motionit.domain.challenge.video.repository.ChallengeVideoRepository
+import com.back.motionit.global.error.code.ChallengeMissionErrorCode
+import com.back.motionit.global.error.exception.BusinessException
+import com.back.motionit.global.service.GptService
+import io.github.oshai.kotlinlogging.KotlinLogging
+import org.springframework.beans.factory.ObjectProvider
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDate
 
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.back.motionit.domain.challenge.mission.entity.ChallengeMissionStatus;
-import com.back.motionit.domain.challenge.mission.repository.ChallengeMissionStatusRepository;
-import com.back.motionit.domain.challenge.participant.entity.ChallengeParticipant;
-import com.back.motionit.domain.challenge.participant.repository.ChallengeParticipantRepository;
-import com.back.motionit.domain.challenge.room.entity.ChallengeRoom;
-import com.back.motionit.domain.challenge.validator.ChallengeAuthValidator;
-import com.back.motionit.domain.challenge.video.repository.ChallengeVideoRepository;
-import com.back.motionit.global.error.code.ChallengeMissionErrorCode;
-import com.back.motionit.global.error.exception.BusinessException;
-import com.back.motionit.global.service.GptService;
-
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
-@Slf4j
 @Service
-@RequiredArgsConstructor
-public class ChallengeMissionStatusService {
+class ChallengeMissionStatusService(
+    private val challengeMissionStatusRepository: ChallengeMissionStatusRepository,
+    private val challengeParticipantRepository: ChallengeParticipantRepository,
+    private val challengeVideoRepository: ChallengeVideoRepository,
+    private val challengeAuthValidator: ChallengeAuthValidator,
+    private val gptProvider: ObjectProvider<GptService>,
+) {
+    private val log = KotlinLogging.logger {}
 
-	private final ChallengeMissionStatusRepository challengeMissionStatusRepository;
-	private final ChallengeParticipantRepository challengeParticipantRepository;
-	private final ChallengeVideoRepository challengeVideoRepository;
-	private final ChallengeAuthValidator challengeAuthValidator;
-	private final ObjectProvider<GptService> gptProvider;
+    @Transactional(readOnly = true)
+    fun generateAiSummary(roomId: Long, actorId: Long): String {
+        val participant = challengeAuthValidator.validateActiveParticipant(actorId, roomId)
+        val mission = getTodayMissionStatus(roomId, actorId)
+        val gptService = gptProvider.getIfAvailable()
 
-	@Transactional(readOnly = true)
-	public String generateAiSummary(Long roomId, Long actorId) {
-		ChallengeParticipant participant = challengeAuthValidator.validateActiveParticipant(actorId, roomId);
-		ChallengeMissionStatus mission = getTodayMissionStatus(roomId, actorId);
-		GptService gptService = gptProvider.getIfAvailable();
+        // 이미 저장된 AI 메시지가 있으면 그대로 반환
+        mission.aiMessage?.let{
+            if(it.isNotBlank()){
+                log.info { "[AI Summary] Using cached message user=$actorId room=$roomId" }
+                return it
+            }
+        }
 
-		// 이미 저장된 AI 메시지가 있으면 그대로 반환
-		if (mission.getAiMessage() != null && !mission.getAiMessage().isEmpty()) {
-			log.info("[AI Summary] Using cached AI message for user={}, room={}", actorId, roomId);
-			return mission.getAiMessage();
-		}
+        if(gptService == null){
+            log.warn {"[AI Summary] GPT disabled or not configured. user=$actorId room=$roomId" }
+            return "응원 메시지를 준비중입니다" // 테스트/비활성 환경 기본 응답
+        }
 
-		if (gptService == null) {
-			log.warn("[AI Summary] GPT disabled or not configured. user={}, room={}", actorId, roomId);
-			return "응원 메시지를 준비중입니다"; // 테스트/비활성 환경 기본 응답
-		}
+        return runCatching {
+            gptService.generateMissionCompleteSummary(
+                    participant.user.nickname,
+                    participant.challengeRoom.title
+                    )
+        }.getOrElse{
+            log.error(it){"[AI Summary] failed to generate summary for user=$actorId room=$roomId"}
+            "응원 메시지 생성에 실패했습니다"
+        }
+    }
 
-		// 저장된 메시지가 없으면 새로 생성
-		try {
-			return gptService.generateMissionCompleteSummary(
-				participant.getUser().getNickname(),
-				participant.getChallengeRoom().getTitle()
-			);
-		} catch (Exception e) {
-			log.error("[AI Summary] failed to generate summary for user={}, room={}", actorId, roomId, e);
-			return "응원 메시지 생성에 실패했습니다";
-		}
-	}
+    @Transactional
+    fun completeMission(roomId: Long, actorId: Long): ChallengeMissionStatus {
+        // 참여중인 참가자인지 확인 - controller를 거치지 않은 호출에 대비
+        val participant = challengeAuthValidator.validateActiveParticipant(actorId, roomId)
+        val gptService = gptProvider.ifAvailable
 
-	@Transactional
-	public ChallengeMissionStatus completeMission(Long roomId, Long actorId) {
-		// 참여중인 참가자인지 확인 - controller를 거치지 않은 호출에 대비
-		ChallengeParticipant participant = challengeAuthValidator.validateActiveParticipant(actorId, roomId);
-		GptService gptService = gptProvider.getIfAvailable();
+        val today = LocalDate.now()
 
-		// 영상 존재 확인
-		boolean hasTodayVideo = challengeVideoRepository
-			.existsByChallengeRoomIdAndUploadDate(roomId, LocalDate.now());
+        // 영상 존재 확인
+        if (!challengeVideoRepository.existsByChallengeRoomIdAndUploadDate(roomId, today)) {
+            throw BusinessException(ChallengeMissionErrorCode.NO_VIDEO_UPLOADED)
+        }
 
-		if (!hasTodayVideo) {
-			throw new BusinessException(ChallengeMissionErrorCode.NO_VIDEO_UPLOADED);
-		}
-		LocalDate today = LocalDate.now();
+        val mission = challengeMissionStatusRepository
+            .findByParticipantIdAndMissionDate(participant.id!!, today)
+            ?: challengeMissionStatusRepository.save(
+                ChallengeMissionStatus.create(participant, today)
+            )
 
-		ChallengeMissionStatus mission = challengeMissionStatusRepository
-			.findByParticipantIdAndMissionDate(participant.getId(), today);
+        // 이미 완료된 미션인지 확인
+        if (mission.completed) {
+            throw BusinessException(ChallengeMissionErrorCode.ALREADY_COMPLETED)
+        }
 
-		if (mission == null) {
-			ChallengeMissionStatus newMission = ChallengeMissionStatus.create(participant, today);
-			mission = challengeMissionStatusRepository.save(newMission);
-		}
+        // 미션 완료 상태로 업데이트
+        mission.completeMission()
 
-		// 이미 완료된 미션인지 확인
-		if (Boolean.TRUE.equals(mission.getCompleted())) {
-			throw new BusinessException(ChallengeMissionErrorCode.ALREADY_COMPLETED);
-		}
+        if(mission.aiMessage.isNullOrEmpty() && gptService != null){
+            val aiMessage = runCatching {
+                gptService.generateMissionCompleteSummary(
+                    participant.user.nickname,
+                    participant.challengeRoom.title
+                )
+            }.getOrElse {
+                log.error(it) {"[Mission Complete] Failed to generate AI message for user={}, room={}"}
+                "응원 메시지 생성에 실패했습니다"
+            }
 
-		// 미션 완료 상태로 업데이트
-		mission.completeMission();
+            mission.updateAiMessage(aiMessage)
+        }
 
-		if (gptService == null) {
-			log.warn("[AI Summary] GPT disabled or not configured. user={}, room={}", actorId, roomId);
-		}
+        return mission
+    }
 
-		if (mission.getAiMessage() == null || mission.getAiMessage().isEmpty()) {
-			try {
-				String aiMessage = gptService.generateMissionCompleteSummary(
-					participant.getUser().getNickname(),
-					participant.getChallengeRoom().getTitle()
-				);
-				mission.setAiMessage(aiMessage);
-				log.info("[Mission Complete] AI message generated and saved for user={}, room={}", actorId, roomId);
-			} catch (Exception e) {
-				log.error("[Mission Complete] Failed to generate AI message for user={}, room={}", actorId, roomId, e);
-				// AI 생성 실패해도 미션 완료는 진행
-				mission.setAiMessage("응원 메시지 생성에 실패했습니다");
-			}
-		}
+    @Transactional(readOnly = true)
+    fun getTodayMissionStatus(roomId: Long, actorId: Long): ChallengeMissionStatus {
+        val participant = challengeAuthValidator.validateActiveParticipant(actorId, roomId)
+        val today = LocalDate.now()
 
-		return mission;
-	}
+        return challengeMissionStatusRepository
+            .findByParticipantIdAndMissionDate(participant.id!!, today)
+            ?: throw BusinessException(ChallengeMissionErrorCode.NOT_INITIALIZED_MISSION)
+    }
 
-	@Transactional(readOnly = true)
-	public ChallengeMissionStatus getTodayMissionStatus(Long roomId, Long actorId) {
-		ChallengeParticipant participant = challengeAuthValidator.validateActiveParticipant(actorId, roomId);
+    // 특정 운동방의 모든 참가자의 오늘 미션 상태 조회
+    @Transactional(readOnly = true)
+    fun getTodayMissionsByRoom(roomId: Long, actorId: Long): List<ChallengeMissionStatus> {
+        // 접근 권한 확인
+        val participant = challengeAuthValidator.validateActiveParticipant(actorId, roomId)
+        val room = participant.challengeRoom
+        val today = LocalDate.now()
 
-		LocalDate today = LocalDate.now();
+        // TODO: 쿼리 최적화 필요 (LEFT JOIN)
+        val participants =
+            challengeParticipantRepository.findAllByChallengeRoomAndQuitedFalse(room)
 
-		ChallengeMissionStatus mission =
-			challengeMissionStatusRepository.findByParticipantIdAndMissionDate(
-				participant.getId(), today
-			);
+        // 오늘 미션 완료자 조회 (참가자까지 fetch)
+        val missions =
+            challengeMissionStatusRepository.findByRoomAndDate(room, today)
 
-		if (mission == null) {
-			throw new BusinessException(ChallengeMissionErrorCode.NOT_INITIALIZED_MISSION);
-		}
+        // participantId → mission 매핑
+        val missionMap = missions.associateBy { it.participant.id!! }
 
-		return mission;
-	}
+        // 전체 참가자 기준 병합 (미완료자 포함)
+        val allStatuses = participants.map { p ->
+            missionMap[p.id] ?: ChallengeMissionStatus.create(p, today)
+        }
 
-	// 특정 운동방의 모든 참가자의 오늘 미션 상태 조회
-	@Transactional(readOnly = true)
-	public List<ChallengeMissionStatus> getTodayMissionsByRoom(Long roomId, Long actorId) {
-		// 접근 권한 확인
-		ChallengeParticipant participant = challengeAuthValidator.validateActiveParticipant(actorId, roomId);
-		ChallengeRoom challengeRoom = participant.getChallengeRoom();
+        if (allStatuses.isEmpty()) {
+            log.warn { "[getTodayMissionsByRoom] $today 날짜에 미션 데이터가 없습니다. (roomId=$roomId)" }
+        }
+        return allStatuses
+    }
 
-		LocalDate today = LocalDate.now();
-
-		// TODO: 쿼리 최적화 필요 (LEFT JOIN)
-		List<ChallengeParticipant> participants = challengeParticipantRepository.findAllByChallengeRoomAndQuitedFalse(
-			challengeRoom);
-
-		// 오늘 미션 완료자 조회 (참가자까지 fetch)
-		List<ChallengeMissionStatus> missions =
-			challengeMissionStatusRepository.findByRoomAndDate(challengeRoom, today);
-
-		// participantId → mission 매핑
-		Map<Long, ChallengeMissionStatus> missionMap = missions.stream()
-			.filter(m -> m.getParticipant() != null) // null-safe
-			.collect(Collectors.toMap(
-				m -> m.getParticipant().getId(),
-				m -> m,
-				(a, b) -> a // 중복 키 방지
-			));
-
-		// 전체 참가자 기준 병합 (미완료자 포함)
-		List<ChallengeMissionStatus> allStatuses = participants.stream()
-			.map(p -> missionMap.getOrDefault(
-				p.getId(),
-				ChallengeMissionStatus.create(p, today) // 엔티티 생성자 이용 (participant 연결 명시)
-			))
-			.toList();
-
-		if (allStatuses.isEmpty()) {
-			log.warn("[getTodayMissionsByRoom] {} 날짜에 미션 데이터가 없습니다. (roomId={})", today, roomId);
-		}
-		return allStatuses;
-	}
-
-	// 참가자의 미션 수행 내역 조회
-	@Transactional(readOnly = true)
-	public List<ChallengeMissionStatus> getMissionHistory(Long roomId, Long actorId) {
-		ChallengeParticipant participant = challengeAuthValidator.validateActiveParticipant(actorId, roomId);
-
-		return challengeMissionStatusRepository.findAllByParticipantId(participant.getId());
-	}
+    // 참가자의 미션 수행 내역 조회
+    @Transactional(readOnly = true)
+    fun getMissionHistory(roomId: Long, actorId: Long): List<ChallengeMissionStatus> {
+        val participant = challengeAuthValidator.validateActiveParticipant(actorId, roomId)
+        return challengeMissionStatusRepository.findAllByParticipantId(participant.id!!)
+    }
 }
+// TODO: participant.id!! -> baseEntity 구조문제로 추후 !! 제거
