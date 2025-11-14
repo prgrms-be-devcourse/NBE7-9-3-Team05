@@ -102,13 +102,13 @@ class ChallengeRoomService(
             return GetRoomsResponse(countOpenRooms(), listOf())
         }
 
-        val roomIds = rooms.map { it.id }
+        val roomIds: List<Long> = rooms.mapNotNull { it.id }
         val joiningSet: Set<Long> =
             if ((user == null)) {
                 emptySet()
             } else {
                 participantRepository
-                    .findJoiningRoomIdsByUserAndRoomIds(user.id, roomIds)
+                    .findJoiningRoomIdsByUserAndRoomIds(user.id!!, roomIds)
                     .toSet()
             }
 
@@ -152,7 +152,7 @@ class ChallengeRoomService(
 
     @Transactional
     fun deleteRoom(roomId: Long, user: User) {
-        if (!participantService.checkParticipantIsRoomHost(user.id, roomId)) {
+        if (!participantService.checkParticipantIsRoomHost(user.id!!, roomId)) {
             throw BusinessException(ChallengeRoomErrorCode.INVALID_AUTH_USER)
         }
 
@@ -206,7 +206,7 @@ class ChallengeRoomService(
             .map { video: ChallengeVideo -> ChallengeVideoDto(video) }
 
         val participants = participantRepository
-            .findAllByRoomIdWithUser(room.id)
+            .findAllByRoomIdWithUser(room.id!!)
             .map { participant: ChallengeParticipant -> ChallengeParticipantDto(participant) }
 
         return GetRoomResponse(
@@ -218,8 +218,8 @@ class ChallengeRoomService(
 
     private fun autoJoinAsHost(createdRoom: ChallengeRoom) {
         challengeParticipantService.joinChallengeRoom(
-            createdRoom.user.id,
-            createdRoom.id,
+            createdRoom.user.id!!,
+            createdRoom.id!!,
             ChallengeParticipantRole.HOST
         )
     }

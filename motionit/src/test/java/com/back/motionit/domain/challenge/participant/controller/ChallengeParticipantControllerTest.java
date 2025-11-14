@@ -1,11 +1,10 @@
 package com.back.motionit.domain.challenge.participant.controller;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
-import java.util.Optional;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -88,11 +87,11 @@ public class ChallengeParticipantControllerTest extends BaseIntegrationTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.msg").value(ChallengeParticipantHttp.JOIN_SUCCESS_MESSAGE));
 
-		Optional<ChallengeParticipant> participant =
+		ChallengeParticipant participant =
 			challengeParticipantRepository.findByUserAndChallengeRoom(user, room);
 
-		assertThat(participant).isPresent();
-		assertThat(participant.get().getQuited()).isFalse();
+		assertThat(participant).isNotNull();
+		assertThat(participant.getQuited()).isFalse();
 	}
 
 	@Test
@@ -193,8 +192,9 @@ public class ChallengeParticipantControllerTest extends BaseIntegrationTest {
 			.andExpect(jsonPath("$.msg").value(ChallengeParticipantHttp.LEAVE_SUCCESS_MESSAGE));
 
 		ChallengeParticipant updated = challengeParticipantRepository
-			.findByUserAndChallengeRoom(user, room)
-			.orElseThrow();
+			.findByUserAndChallengeRoom(user, room);
+
+		assertNotNull(updated, "참가자가 조회되어야 합니다.");
 		assertThat(updated.getQuited()).isTrue();
 		assertThat(updated.getQuitDate()).isNotNull();
 	}

@@ -28,13 +28,14 @@ public class ChallengeParticipantFactory extends BaseFactory {
 		ChallengeParticipantRole role,
 		boolean quited
 	) {
-		return ChallengeParticipant.builder()
-			.user(user)
-			.challengeRoom(room)
-			.role(role)
-			.quited(quited)
-			.challengeStatus(false)
-			.build();
+		return ChallengeParticipant.create(
+			user,
+			room,
+			role,
+			quited,
+			false,
+			null
+		);
 	}
 
 	/**

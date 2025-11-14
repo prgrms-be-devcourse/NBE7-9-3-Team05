@@ -1,6 +1,7 @@
 package com.back.motionit.domain.challenge.room.controller;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -211,9 +212,9 @@ public class ChallengeRoomControllerTest extends BaseIntegrationTest {
 			ChallengeRoom createdRoom = challengeRoomRepository.findById(roomId)
 				.orElseThrow();
 			ChallengeParticipant participant = challengeParticipantRepository
-				.findByUserAndChallengeRoom(owner, createdRoom)
-				.orElseThrow();
+				.findByUserAndChallengeRoom(owner, createdRoom);
 
+			assertNotNull(participant, "참가자가 조회되어야 합니다.");
 			assertThat(participant.getRole()).isEqualTo(ChallengeParticipantRole.HOST);
 		}
 	}
