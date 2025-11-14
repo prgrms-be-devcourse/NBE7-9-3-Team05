@@ -22,6 +22,7 @@ import org.springframework.test.context.transaction.TestTransaction;
 import com.back.motionit.domain.challenge.participant.repository.ChallengeParticipantRepository;
 import com.back.motionit.domain.challenge.room.entity.ChallengeRoom;
 import com.back.motionit.domain.challenge.room.repository.ChallengeRoomRepository;
+import com.back.motionit.domain.challenge.video.entity.OpenStatus;
 import com.back.motionit.domain.challenge.video.service.ChallengeVideoService;
 import com.back.motionit.domain.user.entity.LoginType;
 import com.back.motionit.domain.user.entity.User;
@@ -79,13 +80,11 @@ class ChallengeParticipantServiceConcurrencyTest {
 			"동시성 테스트 방",
 			"테스트용 방입니다",
 			5,
-			null,
+			OpenStatus.OPEN,
 			LocalDateTime.now(),
 			LocalDateTime.now().plusDays(7),
 			"https://example.com/test-room.png",
-			null,
-			new ArrayList<>(),
-			new ArrayList<>()
+			null
 		);
 		challengeRoomRepository.saveAndFlush(room);
 
