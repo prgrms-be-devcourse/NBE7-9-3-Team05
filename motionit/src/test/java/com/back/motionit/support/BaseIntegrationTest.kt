@@ -1,19 +1,18 @@
-package com.back.motionit.support;
+package com.back.motionit.support
 
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-
-import com.back.motionit.global.service.AwsCdnSignService;
-import com.back.motionit.global.service.AwsS3Service;
-import com.theokanning.openai.service.OpenAiService;
+import com.back.motionit.global.service.AwsCdnSignService
+import com.back.motionit.global.service.AwsS3Service
+import com.theokanning.openai.service.OpenAiService
+import org.springframework.test.context.bean.override.mockito.MockitoBean
 
 @IntegrationTest
-public class BaseIntegrationTest {
-	@MockitoBean
-	AwsCdnSignService awsCdnSignService;
+class BaseIntegrationTest {
+    @MockitoBean
+    var awsCdnSignService: AwsCdnSignService? = null
 
-	@MockitoBean
-	AwsS3Service awsS3Service;
+    @MockitoBean
+    var awsS3Service: AwsS3Service? = null
 
-	@MockitoBean
-	OpenAiService openAiService;
+    @MockitoBean
+    var openAiService: OpenAiService? = null
 }

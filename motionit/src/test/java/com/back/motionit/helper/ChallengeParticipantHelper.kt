@@ -1,28 +1,20 @@
-package com.back.motionit.helper;
+package com.back.motionit.helper
 
-import org.springframework.stereotype.Component;
-
-import com.back.motionit.domain.challenge.participant.entity.ChallengeParticipant;
-import com.back.motionit.domain.challenge.participant.repository.ChallengeParticipantRepository;
-import com.back.motionit.domain.challenge.room.entity.ChallengeRoom;
-import com.back.motionit.domain.user.entity.User;
-import com.back.motionit.factory.ChallengeParticipantFactory;
+import com.back.motionit.domain.challenge.participant.entity.ChallengeParticipant
+import com.back.motionit.domain.challenge.participant.repository.ChallengeParticipantRepository
+import com.back.motionit.domain.challenge.room.entity.ChallengeRoom
+import com.back.motionit.domain.user.entity.User
+import com.back.motionit.factory.ChallengeParticipantFactory.fakeHost
+import com.back.motionit.factory.ChallengeParticipantFactory.fakeParticipant
+import org.springframework.stereotype.Component
 
 @Component
-public class ChallengeParticipantHelper {
-	private ChallengeParticipantRepository participantRepository;
+class ChallengeParticipantHelper(
+    private val participantRepository: ChallengeParticipantRepository
+) {
+    fun createHostParticipant(user: User, room: ChallengeRoom): ChallengeParticipant =
+        participantRepository.save(fakeHost(user, room))
 
-	public ChallengeParticipantHelper(
-		ChallengeParticipantRepository participantRepository
-	) {
-		this.participantRepository = participantRepository;
-	}
-
-	public ChallengeParticipant createHostParticipant(User user, ChallengeRoom room) {
-		return participantRepository.save(ChallengeParticipantFactory.fakeHost(user, room));
-	}
-
-	public ChallengeParticipant createNormalParticipant(User user, ChallengeRoom room) {
-		return participantRepository.save(ChallengeParticipantFactory.fakeParticipant(user, room));
-	}
+    fun createNormalParticipant(user: User, room: ChallengeRoom): ChallengeParticipant =
+        participantRepository.save(fakeParticipant(user, room))
 }
