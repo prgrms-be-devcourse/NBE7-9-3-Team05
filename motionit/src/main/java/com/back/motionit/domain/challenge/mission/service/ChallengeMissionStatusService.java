@@ -81,7 +81,7 @@ public class ChallengeMissionStatusService {
 		ChallengeMissionStatus mission = challengeMissionStatusRepository
 			.findByParticipantIdAndMissionDate(participant.getId(), today)
 			.orElseGet(() -> {
-				ChallengeMissionStatus newMission = new ChallengeMissionStatus(participant, today);
+				ChallengeMissionStatus newMission = ChallengeMissionStatus.create(participant, today);
 				return challengeMissionStatusRepository.save(newMission);
 			});
 
@@ -156,7 +156,7 @@ public class ChallengeMissionStatusService {
 		List<ChallengeMissionStatus> allStatuses = participants.stream()
 			.map(p -> missionMap.getOrDefault(
 				p.getId(),
-				new ChallengeMissionStatus(p, today) // 엔티티 생성자 이용 (participant 연결 명시)
+				ChallengeMissionStatus.create(p, today) // 엔티티 생성자 이용 (participant 연결 명시)
 			))
 			.toList();
 

@@ -36,14 +36,7 @@ public class ChallengeMissionScheduler {
 				boolean exists = challengeMissionStatusRepository.existsByParticipantIdAndMissionDate(
 					participant.getId(), today);
 				if (!exists) {
-					challengeMissionStatusRepository.save(
-						ChallengeMissionStatus.builder()
-							.participant(participant)
-							.missionDate(today)
-							.completed(false)
-							.aiMessage(null)
-							.build()
-					);
+					challengeMissionStatusRepository.save(ChallengeMissionStatus.create(participant, today));
 				}
 			} catch (DataIntegrityViolationException e) {
 				log.warn("Duplicate mission ignored: participant={} date={}", participant.getId(), today);

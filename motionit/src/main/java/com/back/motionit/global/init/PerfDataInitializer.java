@@ -170,7 +170,7 @@ public class PerfDataInitializer {
 			List<ChallengeMissionStatus> missions = new ArrayList<>();
 			for (List<ChallengeParticipant> plist : roomParticipantsMap.values()) {
 				for (ChallengeParticipant p : plist) {
-					missions.add(new ChallengeMissionStatus(p, LocalDate.now()));
+					missions.add(ChallengeMissionStatus.create(p, LocalDate.now()));
 				}
 			}
 			challengeMissionStatusRepository.saveAll(missions);

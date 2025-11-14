@@ -33,11 +33,7 @@ public class ChallengeMissionStatusFactory extends BaseFactory {
 		LocalDate missionDate,
 		boolean completed
 	) {
-		return ChallengeMissionStatus.builder()
-			.participant(participant)
-			.missionDate(missionDate)
-			.completed(completed)
-			.build();
+		return ChallengeMissionStatus.create(participant, missionDate, completed);
 	}
 
 	/**
