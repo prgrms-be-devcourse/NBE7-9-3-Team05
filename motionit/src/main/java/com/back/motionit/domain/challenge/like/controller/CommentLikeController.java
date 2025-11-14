@@ -27,7 +27,7 @@ public class CommentLikeController implements CommentLikeApi {
 		User actor = requestContext.getActor();
 
 		CommentRes updatedComment = commentLikeService.toggleCommentLikeByCommentId(commentId, actor.getId());
-		String responseMessage = updatedComment.isLiked() ? "좋아요 성공" : "좋아요 취소 성공";
+		String responseMessage = updatedComment.isLiked ? "좋아요 성공" : "좋아요 취소 성공";
 		return ResponseData.success("200", responseMessage, updatedComment);
 	}
 }
