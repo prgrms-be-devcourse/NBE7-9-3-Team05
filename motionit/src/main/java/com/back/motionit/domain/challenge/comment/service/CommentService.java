@@ -16,6 +16,7 @@ import com.back.motionit.domain.challenge.comment.entity.Comment;
 import com.back.motionit.domain.challenge.comment.moderation.CommentModeration;
 import com.back.motionit.domain.challenge.comment.repository.CommentRepository;
 import com.back.motionit.domain.challenge.like.repository.CommentLikeRepository;
+import com.back.motionit.domain.challenge.like.service.CommentLikeService;
 import com.back.motionit.domain.challenge.room.entity.ChallengeRoom;
 import com.back.motionit.domain.challenge.room.repository.ChallengeRoomRepository;
 import com.back.motionit.domain.challenge.validator.ChallengeAuthValidator;
@@ -36,6 +37,8 @@ public class CommentService {
 	private final CommentLikeRepository commentLikeRepository;
 	private final CommentModeration commentModeration;
 	private final ChallengeAuthValidator challengeAuthValidator;
+	private final CommentLikeService commentLikeService;
+
 
 	private void assertActiveRoomOrThrow(Long roomId) {
 		if (!challengeRoomRepository.existsById(roomId)) {
@@ -98,7 +101,7 @@ public class CommentService {
 			.map(Comment::getId)
 			.toList();
 
-		Set<Long> likedCommentIds = commentLikeRepository
+		Set<Long> likedCommentIds = commentLikeService
 			.findLikedCommentIdsSafely(user, commentIds);
 
 		return comments.map(c -> {
