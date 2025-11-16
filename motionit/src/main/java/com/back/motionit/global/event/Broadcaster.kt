@@ -1,5 +1,5 @@
-package com.back.motionit.global.event;
+package com.back.motionit.global.event
 
-public interface Broadcaster<T> {
-	void onCreated(T event);
+interface Broadcaster<T> {
+    fun onCreated(event: T)
 }

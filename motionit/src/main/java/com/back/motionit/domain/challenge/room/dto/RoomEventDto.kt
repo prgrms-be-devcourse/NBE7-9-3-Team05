@@ -1,11 +1,9 @@
-package com.back.motionit.domain.challenge.room.dto;
+package com.back.motionit.domain.challenge.room.dto
 
-import com.back.motionit.global.enums.EventEnums;
+import com.back.motionit.global.enums.EventEnums
 
-public record RoomEventDto(
-	String event
+data class RoomEventDto(
+    val event: String
 ) {
-	public RoomEventDto(EventEnums event) {
-		this(event.getEvent());
-	}
+    constructor(event: EventEnums) : this(event.toString())
 }

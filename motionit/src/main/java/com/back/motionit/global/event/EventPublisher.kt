@@ -1,17 +1,14 @@
-package com.back.motionit.global.event;
+package com.back.motionit.global.event
 
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.stereotype.Component;
-
-import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher
+import org.springframework.stereotype.Component
 
 @Component
-@RequiredArgsConstructor
-public class EventPublisher {
+class EventPublisher(
+    private val publisher: ApplicationEventPublisher
+) {
 
-	private final ApplicationEventPublisher publisher;
-
-	public <T> void publishEvent(T event) {
-		publisher.publishEvent(event);
-	}
+    fun publishEvent(event: Any) {
+        publisher.publishEvent(event)
+    }
 }
