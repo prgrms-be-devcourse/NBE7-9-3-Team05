@@ -1,121 +1,124 @@
-package com.back.motionit.security.config;
+package com.back.motionit.security.config
 
-import java.util.List;
-
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.messaging.Message;
-import org.springframework.security.authorization.AuthorizationManager;
-import org.springframework.security.config.Customizer;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.messaging.access.intercept.MessageMatcherDelegatingAuthorizationManager;
-import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.context.SecurityContextHolderFilter;
-import org.springframework.security.web.header.writers.frameoptions.XFrameOptionsHeaderWriter;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
-import com.back.motionit.security.CustomAuthenticationFilter;
-import com.back.motionit.security.handler.CustomOAuth2LoginSuccessHandler;
-import com.back.motionit.security.oauth.CustomOAuth2AuthorizationRequestResolver;
-import com.back.motionit.security.oauth.CustomOAuth2UserService;
+import com.back.motionit.security.CustomAuthenticationFilter
+import com.back.motionit.security.handler.CustomOAuth2LoginSuccessHandler
+import com.back.motionit.security.oauth.CustomOAuth2AuthorizationRequestResolver
+import com.back.motionit.security.oauth.CustomOAuth2UserService
+import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+import org.springframework.messaging.Message
+import org.springframework.security.authorization.AuthorizationManager
+import org.springframework.security.config.Customizer
+import org.springframework.security.config.annotation.web.builders.HttpSecurity
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
+import org.springframework.security.config.http.SessionCreationPolicy
+import org.springframework.security.messaging.access.intercept.MessageMatcherDelegatingAuthorizationManager
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository
+import org.springframework.security.web.SecurityFilterChain
+import org.springframework.security.web.context.SecurityContextHolderFilter
+import org.springframework.security.web.header.writers.frameoptions.XFrameOptionsHeaderWriter
+import org.springframework.web.cors.CorsConfiguration
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 
 @Configuration
 @EnableWebSecurity
-@ConditionalOnProperty(name = "app.security.enabled", havingValue = "true", matchIfMissing = true)
-public class SecurityConfig {
+@ConditionalOnProperty(name = ["app.security.enabled"], havingValue = "true", matchIfMissing = true)
+class SecurityConfig {
 
-	@Bean
-	SecurityFilterChain filterChain(
-		HttpSecurity http,
-		ObjectProvider<CustomAuthenticationFilter> customAuthenticationFilter,
-		ObjectProvider<ClientRegistrationRepository> clientRepoProvider,
-		ObjectProvider<CustomOAuth2LoginSuccessHandler> customOAuth2LoginSuccessHandler,
-		ObjectProvider<CustomOAuth2AuthorizationRequestResolver> customOAuth2AuthorizationRequestResolver,
-		ObjectProvider<CustomOAuth2UserService> customOAuth2UserService,
-		@Value("${app.oauth2.enabled:true}") boolean oauth2Enabled
-	) throws Exception {
+    @Bean
+    @Throws(Exception::class)
+    fun filterChain(
+        http: HttpSecurity,
+        customAuthenticationFilter: ObjectProvider<CustomAuthenticationFilter>,
+        clientRepoProvider: ObjectProvider<ClientRegistrationRepository>,
+        customOAuth2LoginSuccessHandler: ObjectProvider<CustomOAuth2LoginSuccessHandler>,
+        customOAuth2AuthorizationRequestResolver: ObjectProvider<CustomOAuth2AuthorizationRequestResolver>,
+        customOAuth2UserService: ObjectProvider<CustomOAuth2UserService>,
+        @Value("\${app.oauth2.enabled:true}") oauth2Enabled: Boolean
+    ): SecurityFilterChain {
 
-		http
-			.cors(Customizer.withDefaults())
-			.authorizeHttpRequests(reg -> reg
-				.requestMatchers("/favicon.ico").permitAll()
-				.requestMatchers("/h2-console/**").permitAll()
-				.requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-				.requestMatchers("/.well-known/**").permitAll()
-				.requestMatchers("/api/v1/storage/**").permitAll()
-				.requestMatchers("/api/v1/auth/**").permitAll()
-				.requestMatchers("/ws/**").permitAll()
-				.requestMatchers("/actuator/**").permitAll()    // 모니터링/Actuator 관련
-				.anyRequest().authenticated()
-			)
-			.csrf(AbstractHttpConfigurer::disable)
-			.headers(headers -> headers.addHeaderWriter(
-				new XFrameOptionsHeaderWriter(XFrameOptionsHeaderWriter.XFrameOptionsMode.SAMEORIGIN)
-			))
-			.sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+        http.run {
+            cors(Customizer.withDefaults())
 
-		// CustomAuthenticationFilter가 있으면 연결
-		CustomAuthenticationFilter authFilter = customAuthenticationFilter.getIfAvailable();
-		if (authFilter != null) {
-			http.addFilterAfter(authFilter, SecurityContextHolderFilter.class);
-		}
+            authorizeHttpRequests { reg ->
+                reg.requestMatchers(
+                    "/favicon.ico",
+                    "/h2-console/**",
+                    "/swagger-ui/**",
+                    "/v3/api-docs/**",
+                    "/.well-known/**",
+                    "/api/v1/storage/**",
+                    "/api/v1/auth/**",
+                    "/ws/**",
+                    "/actuator/**"
+                ).permitAll()
+                    .anyRequest().authenticated()
+            }
 
-		// OAuth2는 enabled + ClientRegistrationRepository가 있을 때만 구성
-		var clientRepo = clientRepoProvider.getIfAvailable();
-		if (oauth2Enabled && clientRepo != null) {
-			http.oauth2Login(oauth2 -> {
-				var resolver = customOAuth2AuthorizationRequestResolver.getIfAvailable();
-				var userService = customOAuth2UserService.getIfAvailable();
-				var successHandler = customOAuth2LoginSuccessHandler.getIfAvailable();
+            csrf { it.disable() }
 
-				if (resolver != null) {
-					oauth2.authorizationEndpoint(ae -> ae.authorizationRequestResolver(resolver));
-				}
+            headers {
+                it.addHeaderWriter(
+                    XFrameOptionsHeaderWriter(XFrameOptionsHeaderWriter.XFrameOptionsMode.SAMEORIGIN)
+                )
+            }
 
-				if (userService != null) {
-					oauth2.userInfoEndpoint(ui -> ui.userService(userService));
-				}
+            sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
+        }
 
-				if (successHandler != null) {
-					oauth2.successHandler(successHandler);
-				}
-			});
-		} else {
-			http.oauth2Login(AbstractHttpConfigurer::disable);
-		}
+        // CustomAuthenticationFilter 추가
+        customAuthenticationFilter.ifAvailable?.let { filter ->
+            http.addFilterAfter(filter, SecurityContextHolderFilter::class.java)
+        }
 
-		return http.build();
-	}
+        // OAuth2 설정 (조건부 활성화)
+        val clientRepo = clientRepoProvider.ifAvailable
+        if (oauth2Enabled && clientRepo != null) {
+            http.oauth2Login { oauth2 ->
+                customOAuth2AuthorizationRequestResolver.ifAvailable?.let { resolver ->
+                    oauth2.authorizationEndpoint { it.authorizationRequestResolver(resolver) }
+                }
 
-	@Bean
-	public UrlBasedCorsConfigurationSource corsConfigurationSource() {
-		CorsConfiguration configuration = new CorsConfiguration();
-		configuration.setAllowedOriginPatterns(List.of("http://localhost:3000"));
-		configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
-		configuration.setAllowedHeaders(List.of("*"));
-		configuration.setAllowCredentials(true);
-		configuration.setExposedHeaders(List.of("*"));
-		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-		source.registerCorsConfiguration("/**", configuration);
-		return source;
-	}
+                customOAuth2UserService.ifAvailable?.let { userService ->
+                    oauth2.userInfoEndpoint { it.userService(userService) }
+                }
 
-	@Bean
-	public AuthorizationManager<Message<?>> messageAuthorizationManager() {
-		MessageMatcherDelegatingAuthorizationManager.Builder builder =
-			MessageMatcherDelegatingAuthorizationManager.builder();
-		builder.simpSubscribeDestMatchers("/topic/challenge/rooms").permitAll();
-		builder.simpSubscribeDestMatchers("/topic/challenge/rooms/*").authenticated();
-		builder.simpDestMatchers("/app/**").authenticated();
-		builder.anyMessage().denyAll();
-		return builder.build();
-	}
+                customOAuth2LoginSuccessHandler.ifAvailable?.let { handler ->
+                    oauth2.successHandler(handler)
+                }
+            }
+        } else {
+            http.oauth2Login { it.disable() }
+        }
+
+        return http.build()
+    }
+
+    @Bean
+    fun corsConfigurationSource(): UrlBasedCorsConfigurationSource {
+        val configuration = CorsConfiguration().apply {
+            allowedOriginPatterns = listOf("http://localhost:3000")
+            allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
+            allowedHeaders = listOf("*")
+            allowCredentials = true
+            exposedHeaders = listOf("*")
+        }
+
+        return UrlBasedCorsConfigurationSource().apply {
+            registerCorsConfiguration("/**", configuration)
+        }
+    }
+
+    @Bean
+    fun messageAuthorizationManager(): AuthorizationManager<Message<*>> {
+        return MessageMatcherDelegatingAuthorizationManager.builder().apply {
+            simpSubscribeDestMatchers("/topic/challenge/rooms").permitAll()
+            simpSubscribeDestMatchers("/topic/challenge/rooms/*").authenticated()
+            simpDestMatchers("/app/**").authenticated()
+            anyMessage().denyAll()
+        }.build()
+    }
 }
