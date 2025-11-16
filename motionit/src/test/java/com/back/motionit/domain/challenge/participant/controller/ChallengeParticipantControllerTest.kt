@@ -53,7 +53,7 @@ class ChallengeParticipantControllerTest : BaseIntegrationTest() {
         user = userHelper.createUser()
         room = createTestRoom(user)
         val authorities = AuthorityUtils.createAuthorityList("ROLE_USER")
-        securityUser = SecurityUser(user.id, user.password, user.nickname, authorities)
+        securityUser = SecurityUser(user.id!!, user.password!!, user.nickname, authorities)
         authentication =
             UsernamePasswordAuthenticationToken(securityUser, null, securityUser.authorities)
         SecurityContextHolder.getContext().authentication = authentication
