@@ -1,70 +1,65 @@
-package com.back.motionit.global.service;
+package com.back.motionit.global.service
 
-import java.io.File;
-import java.security.PrivateKey;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.Date;
-import java.util.Map;
-
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.Profile;
-import org.springframework.stereotype.Component;
-import org.springframework.util.ResourceUtils;
-
-import com.amazonaws.services.cloudfront.CloudFrontCookieSigner;
-import com.amazonaws.services.cloudfront.util.SignerUtils;
-
-import jakarta.annotation.PostConstruct;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletResponse;
+import com.amazonaws.services.cloudfront.CloudFrontCookieSigner
+import com.amazonaws.services.cloudfront.util.SignerUtils
+import jakarta.annotation.PostConstruct
+import jakarta.servlet.http.Cookie
+import jakarta.servlet.http.HttpServletResponse
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.context.annotation.Profile
+import org.springframework.stereotype.Component
+import org.springframework.util.ResourceUtils
+import java.security.PrivateKey
+import java.time.Duration
+import java.time.Instant
+import java.util.*
 
 @Component
-@ConditionalOnProperty(name = "app.aws.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = ["app.aws.enabled"], havingValue = "true", matchIfMissing = true)
 @Profile("!test")
-public class CloudFrontCookieService {
-	@Value("${aws.cloudfront.domain}")
-	private String cloudFrontDomain;
+class CloudFrontCookieService(
+    @Value("\${aws.cloudfront.domain}")
+    private val cloudFrontDomain: String,
 
-	@Value("${aws.cloudfront.key-id}")
-	private String keyPairId;
+    @Value("\${aws.cloudfront.key-id}")
+    private val keyPairId: String,
 
-	@Value("${aws.cloudfront.private-key-path}")
-	private String privateKeyPath;
+    @Value("\${aws.cloudfront.private-key-path}")
+    private val privateKeyPath: String,
+) {
 
-	private PrivateKey privateKey;
+    private var privateKey: PrivateKey? = null
+    @PostConstruct
+    fun init() {
+        val keyFile = ResourceUtils.getFile(privateKeyPath)
+        this.privateKey = SignerUtils.loadPrivateKey(keyFile)
+    }
 
-	@PostConstruct
-	void init() throws Exception {
-		File keyFile = ResourceUtils.getFile(privateKeyPath);
-		this.privateKey = SignerUtils.loadPrivateKey(keyFile);
-	}
+    fun setSignedCookies(response: HttpServletResponse, ttl: Duration?) {
+        val expiresOn = Date.from(Instant.now().plus(ttl))
+        val resourcePattern = "https://$cloudFrontDomain/*"
 
-	public void setSignedCookies(HttpServletResponse response, Duration ttl) {
-		Date expiresOn = Date.from(Instant.now().plus(ttl));
-		String resourcePattern = "https://" + cloudFrontDomain + "/*";
+        val cookies =
+            CloudFrontCookieSigner.getCookiesForCannedPolicy(
+                SignerUtils.Protocol.https,
+                cloudFrontDomain,
+                privateKey,
+                resourcePattern,
+                keyPairId,
+                expiresOn
+            )
 
-		CloudFrontCookieSigner.CookiesForCannedPolicy cookies =
-			CloudFrontCookieSigner.getCookiesForCannedPolicy(
-				SignerUtils.Protocol.https,
-				cloudFrontDomain,
-				privateKey,
-				resourcePattern,
-				keyPairId,
-				expiresOn
-			);
+        add(response, cookies.keyPairId, true)
+        add(response, cookies.signature, true)
+        add(response, cookies.getExpires(), true)
+    }
 
-		add(response, cookies.getKeyPairId(), true);
-		add(response, cookies.getSignature(), true);
-		add(response, cookies.getExpires(), true);
-	}
-
-	private void add(HttpServletResponse response, Map.Entry<String, String> entry, boolean httpOnly) {
-		Cookie cookie = new Cookie(entry.getKey(), entry.getValue());
-		cookie.setPath("/");
-		cookie.setSecure(true);
-		cookie.setHttpOnly(httpOnly);
-		response.addCookie(cookie);
-	}
+    private fun add(response: HttpServletResponse, entry: Map.Entry<String, String>, httpOnly: Boolean) {
+        val cookie = Cookie(entry.key, entry.value)
+        cookie.path = "/"
+        cookie.secure = true
+        cookie.isHttpOnly = httpOnly
+        response.addCookie(cookie)
+    }
 }

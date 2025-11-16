@@ -1,79 +1,68 @@
-package com.back.motionit.global.config.aws;
+package com.back.motionit.global.config.aws
 
-import java.time.Duration;
-
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
-import org.springframework.stereotype.Component;
-import org.springframework.web.servlet.HandlerInterceptor;
-
-import com.back.motionit.global.service.CloudFrontCookieService;
-
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
+import com.back.motionit.global.service.CloudFrontCookieService
+import jakarta.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletResponse
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
+import org.springframework.stereotype.Component
+import org.springframework.web.servlet.HandlerInterceptor
+import java.time.Duration
 
 @Component
-@ConditionalOnBean(CloudFrontCookieService.class)
-@RequiredArgsConstructor
-public class CloudFrontCookieInterceptor implements HandlerInterceptor {
+@ConditionalOnBean(CloudFrontCookieService::class)
+class CloudFrontCookieInterceptor(
+    private val cookieService: CloudFrontCookieService,
 
-	private final CloudFrontCookieService cookieService;
+    @Value("\${aws.cloudfront.renew-seconds}")
+    private val renewSeconds: String,
 
-	@Value("${aws.cloudfront.renew-seconds}")
-	private String renewSeconds;
+    @Value("\${aws.cloudfront.cookie-duration}")
+    private val cookieDuration: String,
+) : HandlerInterceptor {
+    override fun preHandle(
+        request: HttpServletRequest,
+        response: HttpServletResponse,
+        handler: Any
+    ): Boolean {
+        if (!"GET".equals(request.method, ignoreCase = true)) {
+            return true
+        }
 
-	@Value("${aws.cloudfront.cookie-duration}")
-	private String cookieDuration;
+        if (!needsCookie(request)) {
+            return true
+        }
 
-	@Override
-	public boolean preHandle(
-		HttpServletRequest request,
-		HttpServletResponse response,
-		Object handler
-	) {
-		if (!"GET".equalsIgnoreCase(request.getMethod())) {
-			return true;
-		}
+        cookieService.setSignedCookies(response, Duration.ofHours(cookieDuration.toInt().toLong()))
+        return true
+    }
 
-		if (!needsCookie(request)) {
-			return true;
-		}
+    private fun needsCookie(request: HttpServletRequest): Boolean {
+        val cookies = request.cookies ?: return true
 
-		cookieService.setSignedCookies(response, Duration.ofHours(Integer.parseInt(cookieDuration)));
-		return true;
-	}
+        var expires: String? = null
+        var keypair: String? = null
 
-	private boolean needsCookie(HttpServletRequest request) {
-		Cookie[] cookies = request.getCookies();
-		if (cookies == null) {
-			return true;
-		}
+        for (cookie in cookies) {
+            if ("CloudFront-Expires".equals(cookie.name, ignoreCase = true)) {
+                expires = cookie.value
+            }
 
-		String expires = null;
-		String keypair = null;
+            if ("CloudFront-Key-Pair-Id".equals(cookie.name, ignoreCase = true)) {
+                keypair = cookie.value
+            }
+        }
 
-		for (Cookie cookie : cookies) {
-			if ("CloudFront-Expires".equalsIgnoreCase(cookie.getName())) {
-				expires = cookie.getValue();
-			}
+        if (expires == null || keypair == null) {
+            return true
+        }
 
-			if ("CloudFront-Key-Pair-Id".equalsIgnoreCase(cookie.getName())) {
-				keypair = cookie.getValue();
-			}
-		}
-
-		if (expires == null || keypair == null) {
-			return true;
-		}
-
-		try {
-			long exp = Long.parseLong(expires);
-			long now = System.currentTimeMillis();
-			return (exp - now) <= Long.parseLong(renewSeconds);
-		} catch (NumberFormatException e) {
-			return true;
-		}
-	}
+        try {
+            val exp = expires.toLong()
+            val now = System.currentTimeMillis()
+            return (exp - now) <= renewSeconds!!.toLong()
+        } catch (e: NumberFormatException) {
+            return true
+        }
+    }
 }
