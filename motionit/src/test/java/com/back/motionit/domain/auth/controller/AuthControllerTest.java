@@ -15,7 +15,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import com.back.motionit.domain.auth.controller.AuthController;
 import com.back.motionit.domain.auth.dto.TokenRefreshResponse;
 import com.back.motionit.domain.auth.service.AuthTokenService;
 
@@ -46,10 +45,10 @@ public class AuthControllerTest {
 		String newAccessToken = "new.access.token";
 		long expiresIn = 3600L;
 
-		TokenRefreshResponse response = TokenRefreshResponse.builder()
-			.accessToken(newAccessToken)
-			.expiresIn(expiresIn)
-			.build();
+		TokenRefreshResponse response = new TokenRefreshResponse(
+			newAccessToken,
+			expiresIn
+		);
 
 		given(authTokenService.refreshAccessToken(refreshToken))
 			.willReturn(response);

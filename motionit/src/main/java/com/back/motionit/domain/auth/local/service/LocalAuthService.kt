@@ -80,7 +80,7 @@ class LocalAuthService(
         val user = userRepository.findByRefreshToken(refreshToken)
             .orElseThrow { BusinessException(AuthErrorCode.REFRESH_TOKEN_NOT_FOUND) }
 
-        authTokenService.removeRefreshToken(user.id)
+        authTokenService.removeRefreshToken(user.id!!)
 
         requestContext.deleteCookie("accessToken")
         requestContext.deleteCookie("refreshToken")
