@@ -30,6 +30,7 @@ import com.back.motionit.domain.challenge.comment.entity.Comment;
 import com.back.motionit.domain.challenge.comment.moderation.CommentModeration;
 import com.back.motionit.domain.challenge.comment.repository.CommentRepository;
 import com.back.motionit.domain.challenge.like.repository.CommentLikeRepository;
+import com.back.motionit.domain.challenge.like.service.CommentLikeService;
 import com.back.motionit.domain.challenge.room.entity.ChallengeRoom;
 import com.back.motionit.domain.challenge.room.repository.ChallengeRoomRepository;
 import com.back.motionit.domain.challenge.validator.ChallengeAuthValidator;
@@ -49,6 +50,8 @@ class CommentServiceAuthenticationTest {
 	private UserRepository userRepository;
 	@Mock
 	private CommentLikeRepository commentLikeRepository;
+	@Mock
+	private CommentLikeService commentLikeService;
 	@Mock
 	private CommentModeration commentModeration;
 	@Mock
@@ -158,7 +161,7 @@ class CommentServiceAuthenticationTest {
 			Page<CommentRes> page = commentService.list(ROOM_ID, USER_ID, 0, 20);
 
 			assertThat(page.getTotalElements()).isZero();
-			verify(commentLikeRepository, never()).findLikedCommentIdsSafely(any(), anyList());
+			verify(commentLikeService, never()).findLikedCommentIdsSafely(any(), anyList());
 		}
 
 		@Test
@@ -176,7 +179,7 @@ class CommentServiceAuthenticationTest {
 				.thenReturn(new PageImpl<>(List.of(c1, c2), pageable, 2));
 
 			// (C) 실제 호출 인자와 정확히 일치하도록 스텁
-			when(commentLikeRepository.findLikedCommentIdsSafely(
+			when(commentLikeService.findLikedCommentIdsSafely(
 				eq(author),
 				eq(List.of(COMMENT_ID, COMMENT_ID + 1))
 			)).thenReturn(Set.of(COMMENT_ID));
@@ -184,7 +187,7 @@ class CommentServiceAuthenticationTest {
 			Page<CommentRes> page = commentService.list(ROOM_ID, USER_ID, 0, 20);
 
 			assertThat(page.getTotalElements()).isEqualTo(2);
-			verify(commentLikeRepository, times(1))
+			verify(commentLikeService, times(1))
 				.findLikedCommentIdsSafely(eq(author), eq(List.of(COMMENT_ID, COMMENT_ID + 1)));
 		}
 	}
