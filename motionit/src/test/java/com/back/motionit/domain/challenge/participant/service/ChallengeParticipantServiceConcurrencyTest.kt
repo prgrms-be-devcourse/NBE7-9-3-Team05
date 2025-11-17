@@ -1,137 +1,143 @@
-package com.back.motionit.domain.challenge.participant.service;
+package com.back.motionit.domain.challenge.participant.service
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-import org.assertj.core.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.context.transaction.TestTransaction;
-
-import com.back.motionit.domain.challenge.participant.repository.ChallengeParticipantRepository;
-import com.back.motionit.domain.challenge.room.entity.ChallengeRoom;
-import com.back.motionit.domain.challenge.room.repository.ChallengeRoomRepository;
-import com.back.motionit.domain.challenge.video.entity.OpenStatus;
-import com.back.motionit.domain.challenge.video.service.ChallengeVideoService;
-import com.back.motionit.domain.user.entity.LoginType;
-import com.back.motionit.domain.user.entity.User;
-import com.back.motionit.domain.user.repository.UserRepository;
-import com.back.motionit.global.event.EventPublisher;
-import com.back.motionit.global.service.AwsCdnSignService;
-import com.back.motionit.global.service.AwsS3Service;
-
-import jakarta.persistence.EntityManager;
+import com.back.motionit.domain.challenge.participant.repository.ChallengeParticipantRepository
+import com.back.motionit.domain.challenge.room.entity.ChallengeRoom
+import com.back.motionit.domain.challenge.room.repository.ChallengeRoomRepository
+import com.back.motionit.domain.challenge.video.entity.OpenStatus
+import com.back.motionit.domain.challenge.video.service.ChallengeVideoService
+import com.back.motionit.domain.user.entity.LoginType
+import com.back.motionit.domain.user.entity.User
+import com.back.motionit.domain.user.repository.UserRepository
+import com.back.motionit.global.event.EventPublisher
+import com.back.motionit.global.service.AwsCdnSignService
+import com.back.motionit.global.service.AwsS3Service
+import jakarta.persistence.EntityManager
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
+import org.springframework.context.annotation.Import
+import org.springframework.test.context.ActiveProfiles
+import org.springframework.test.context.bean.override.mockito.MockitoBean
+import org.springframework.test.context.transaction.TestTransaction
+import java.time.LocalDateTime
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 
 @DataJpaTest
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY) // H2 사용
-@Import(ChallengeParticipantService.class)
+@Import(ChallengeParticipantService::class)
 class ChallengeParticipantServiceConcurrencyTest {
 
-	@Autowired
-	private ChallengeParticipantService challengeParticipantService;
+    @Autowired
+    lateinit var challengeParticipantService: ChallengeParticipantService
 
-	@Autowired
-	private UserRepository userRepository;
+    @Autowired
+    lateinit var userRepository: UserRepository
 
-	@Autowired
-	private ChallengeRoomRepository challengeRoomRepository;
+    @Autowired
+    lateinit var challengeRoomRepository: ChallengeRoomRepository
 
-	@Autowired
-	private ChallengeParticipantRepository challengeParticipantRepository;
+    @Autowired
+    lateinit var challengeParticipantRepository: ChallengeParticipantRepository
 
-	@Autowired
-	EntityManager em;
+    @Autowired
+    lateinit var em: EntityManager
 
-	@MockitoBean
-	EventPublisher eventPublisher;
+    @MockitoBean
+    lateinit var eventPublisher: EventPublisher
 
-	@MockitoBean
-	AwsS3Service s3Service;
+    @MockitoBean
+    lateinit var s3Service: AwsS3Service
 
-	@MockitoBean
-	AwsCdnSignService cdnSignService;
+    @MockitoBean
+    lateinit var cdnSignService: AwsCdnSignService
 
-	@MockitoBean
-	ChallengeVideoService challengeVideoService;
+    @MockitoBean
+    lateinit var challengeVideoService: ChallengeVideoService
 
-	@BeforeEach
-	void setUp() {
-		User admin = userRepository.saveAndFlush(User.builder()
-			.email("admin@test.com")
-			.nickname("운영자")
-			.password("1234")
-			.loginType(LoginType.LOCAL)
-			.build());
+    @BeforeEach
+    fun setUp() {
+        // 운영자 생성
+        val admin = userRepository.saveAndFlush(
+            User(
+                email = "admin@test.com",
+                nickname = "운영자",
+                password = "1234",
+                loginType = LoginType.LOCAL
+            )
+        )
 
-		ChallengeRoom room = new ChallengeRoom(
-			admin,
-			"동시성 테스트 방",
-			"테스트용 방입니다",
-			5,
-			OpenStatus.OPEN,
-			LocalDateTime.now(),
-			LocalDateTime.now().plusDays(7),
-			"https://example.com/test-room.png",
-			null
-		);
-		challengeRoomRepository.saveAndFlush(room);
+        // 방 생성
+        val room = ChallengeRoom(
+            user = admin,
+            title = "동시성 테스트 방",
+            description = "테스트용 방입니다",
+            capacity = 5,
+            openStatus = OpenStatus.OPEN,
+            challengeStartDate = LocalDateTime.now(),
+            challengeEndDate = LocalDateTime.now().plusDays(7),
+            roomImage = "https://example.com/test-room.png",
+            deletedAt = null
+        )
+        challengeRoomRepository.saveAndFlush(room)
 
-		for (int i = 1; i <= 10; i++) {
-			userRepository.saveAndFlush(User.builder()
-				.email("user" + i + "@test.com")
-				.nickname("유저" + i)
-				.password("1234")
-				.loginType(LoginType.LOCAL)
-				.build());
-		}
+        // 10명 유저 생성
+        for (i in 1..10) {
+            userRepository.saveAndFlush(
+                User(
+                    email = "user$i@test.com",
+                    nickname = "유저$i",
+                    password = "1234",
+                    loginType = LoginType.LOCAL
+                )
+            )
+        }
 
-		em.flush();
-		em.clear();
+        // 영속성 초기화
+        em.flush()
+        em.clear()
 
-		TestTransaction.flagForCommit();
-		TestTransaction.end(); // 현재 테스트 트랜잭션 종료(커밋)
-	}
+        // DataJpaTest는 기본 트랜잭션 안에서 실행되므로 강제 종료
+        TestTransaction.flagForCommit()
+        TestTransaction.end()
+    }
 
-	@Test
-	@DisplayName("동시에 10명 참가시 정원초과 방지_테스트")
-	void challengeParticipantConcurrencyTest() throws InterruptedException {
-		ChallengeRoom room = challengeRoomRepository.findAll().get(0);
-		List<User> users = userRepository.findAll();
+    @Test
+    @DisplayName("동시에 10명 참가 시 정원 초과 방지")
+    fun challengeParticipantConcurrencyTest() {
+        val room = challengeRoomRepository.findAll().first()
+        val users = userRepository.findAll()
 
-		int threadCount = 10;
-		ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
-		CountDownLatch latch = new CountDownLatch(threadCount);
+        val threadCount = 10
+        val executor = Executors.newFixedThreadPool(threadCount)
+        val latch = CountDownLatch(threadCount)
 
-		for (int i = 0; i < threadCount; i++) {
-			final Long userId = users.get(i).getId();
-			executorService.submit(() -> {
-				try {
-					challengeParticipantService.joinChallengeRoom(userId, room.getId());
-				} catch (Exception e) {
-					System.out.println("실패한 스레드: " + userId + " (" + e.getMessage() + ")");
-				} finally {
-					latch.countDown();
-				}
-			});
-		}
+        repeat(threadCount) { i ->
+            val userId = users[i].id!!
+            executor.submit {
+                try {
+                    challengeParticipantService.joinChallengeRoom(userId, room.id!!)
+                } catch (e: Exception) {
+                    println("실패한 스레드: $userId (${e.message})")
+                } finally {
+                    latch.countDown()
+                }
+            }
+        }
 
-		latch.await();
+        latch.await()
+        executor.shutdown()
 
-		int finalCount = challengeParticipantRepository.countByChallengeRoomAndQuitedFalse(room);
-		System.out.println("최종 참가자 수: " + finalCount);
+        val finalCount = challengeParticipantRepository.countByChallengeRoomAndQuitedFalse(room)
+        println("최종 참가자 수: $finalCount")
 
-		Assertions.assertThat(finalCount).isEqualTo(room.getCapacity());
-	}
+        assertThat(finalCount)
+            .describedAs("정원 ${room.capacity}를 초과하면 안됨")
+            .isEqualTo(room.capacity)
+    }
 }
