@@ -14,10 +14,14 @@ import com.back.motionit.helper.UserHelper
 import com.back.motionit.security.SecurityUser
 import com.back.motionit.support.BaseIntegrationTest
 import com.back.motionit.support.SecuredIntegrationTest
+
 import com.jayway.jsonpath.JsonPath
+
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
+
 import org.junit.jupiter.api.*
+
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.MediaType
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
@@ -30,6 +34,8 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delet
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers.print
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
+import org.hamcrest.Matchers.equalTo
+
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -64,7 +70,7 @@ class CommentLikeControllerTest : BaseIntegrationTest() {
         comment = commentHelper.createComment(user, room, "테스트 댓글입니다.")
 
         val authorities = AuthorityUtils.createAuthorityList("ROLE_USER")
-        securityUser = SecurityUser(user.id!!, user.password, user.nickname, authorities)
+        securityUser = SecurityUser(user.id!!, user.password!!, user.nickname!!, authorities)
         authentication = UsernamePasswordAuthenticationToken(securityUser, null, securityUser.authorities)
         SecurityContextHolder.getContext().authentication = authentication
     }
@@ -124,8 +130,8 @@ class CommentLikeControllerTest : BaseIntegrationTest() {
             )
                 .andDo(print())
                 .andExpect(status().isNotFound)
-                .andExpect(jsonPath("$.resultCode").value("L-301"))
-                .andExpect(jsonPath("$.msg").value("댓글을 찾을 수 없습니다."))
+                .andExpect(jsonPath("$.resultCode").value(equalTo("L-301")))
+                .andExpect(jsonPath("$.msg").value(equalTo("댓글을 찾을 수 없습니다.")))
         }
 
         @Test
@@ -134,7 +140,7 @@ class CommentLikeControllerTest : BaseIntegrationTest() {
             val users = (0 until 3).map { userHelper.createUser() }
             users.forEach { u ->
                 val authorities = AuthorityUtils.createAuthorityList("ROLE_USER")
-                val secUser = SecurityUser(u.id!!, u.password, u.nickname, authorities)
+                val secUser = SecurityUser(u.id!!, u.password!!, u.nickname!!, authorities)
                 val auth = UsernamePasswordAuthenticationToken(secUser, null, secUser.authorities)
                 SecurityContextHolder.getContext().authentication = auth
 
@@ -238,7 +244,7 @@ class CommentLikeControllerTest : BaseIntegrationTest() {
             commentRepository.save(comment2)
 
             val authorities = AuthorityUtils.createAuthorityList("ROLE_USER")
-            val testSecurityUser = SecurityUser(testUser.id!!, testUser.password, testUser.nickname, authorities)
+            val testSecurityUser = SecurityUser(testUser.id!!, testUser.password!!, testUser.nickname!!, authorities)
             val testAuth = UsernamePasswordAuthenticationToken(testSecurityUser, null, testSecurityUser.authorities)
             SecurityContextHolder.getContext().authentication = testAuth
 
@@ -289,7 +295,7 @@ class CommentLikeControllerTest : BaseIntegrationTest() {
             assertThat(likesForThisComment).isEqualTo(3)
 
             val authorities = AuthorityUtils.createAuthorityList("ROLE_USER")
-            val testSecurityUser = SecurityUser(testUser.id!!, testUser.password, testUser.nickname, authorities)
+            val testSecurityUser = SecurityUser(testUser.id!!, testUser.password!!, testUser.nickname!!, authorities)
             val testAuth = UsernamePasswordAuthenticationToken(testSecurityUser, null, testSecurityUser.authorities)
             SecurityContextHolder.getContext().authentication = testAuth
 
@@ -299,7 +305,7 @@ class CommentLikeControllerTest : BaseIntegrationTest() {
             assertThat(likesAfterDelete).isEqualTo(0)
 
             val deletedComment = commentRepository.findById(testComment.id!!).orElseThrow()
-            assertThat(deletedComment.isDeleted).isTrue()
+            assertThat(deletedComment.isDeleted!!).isTrue()
         }
     }
 
