@@ -19,7 +19,7 @@ class CommentLikeController(
     override fun toggleCommentLikeByCommentId(@PathVariable commentId: Long): ResponseData<CommentRes> {
         val actor: User = requestContext.actor
         val updatedComment = commentLikeService.toggleCommentLikeByCommentId(commentId, actor.id!!)
-        val responseMessage = if (updatedComment.isLiked) "좋아요 성공" else "좋아요 취소 성공"
+        val responseMessage = if (updatedComment.liked) "좋아요 성공" else "좋아요 취소 성공"
         return ResponseData.success("200", responseMessage, updatedComment)
     }
 }

@@ -14,28 +14,21 @@ import com.back.motionit.helper.UserHelper
 import com.back.motionit.security.SecurityUser
 import com.back.motionit.support.BaseIntegrationTest
 import com.back.motionit.support.SecuredIntegrationTest
-
 import com.jayway.jsonpath.JsonPath
-
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
-
+import org.hamcrest.Matchers.equalTo
 import org.junit.jupiter.api.*
-
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.MediaType
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.authority.AuthorityUtils
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.test.web.servlet.MockMvc
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers.print
-import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
-import org.hamcrest.Matchers.equalTo
-
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -232,42 +225,60 @@ class CommentLikeControllerTest : BaseIntegrationTest() {
             val comment2 = commentHelper.createComment(testUser, testRoom, "두 번째 댓글")
             val comment3 = commentHelper.createComment(testUser, testRoom, "세 번째 댓글")
 
+            // comment1: testUser가 좋아요
             val like = CommentLike.create(comment1, testUser)
             commentLikeRepository.save(like)
             comment1.incrementLikeCount()
             commentRepository.save(comment1)
 
+            // comment2: otherUser가 좋아요
             val otherUser = userHelper.createUser()
             val otherLike = CommentLike.create(comment2, otherUser)
             commentLikeRepository.save(otherLike)
             comment2.incrementLikeCount()
             commentRepository.save(comment2)
 
+            // 로그인 유저는 testUser
             val authorities = AuthorityUtils.createAuthorityList("ROLE_USER")
             val testSecurityUser = SecurityUser(testUser.id!!, testUser.password!!, testUser.nickname!!, authorities)
             val testAuth = UsernamePasswordAuthenticationToken(testSecurityUser, null, testSecurityUser.authorities)
             SecurityContextHolder.getContext().authentication = testAuth
 
-            val result = mvc.perform(get(getCommentsApi, testRoom.id).contentType(MediaType.APPLICATION_JSON)).andReturn()
+            val result = mvc.perform(
+                get(getCommentsApi, testRoom.id)
+                    .contentType(MediaType.APPLICATION_JSON)
+            ).andReturn()
             val responseJson = result.response.contentAsString
 
-            val comment1LikeCounts: List<Int> = JsonPath.read(responseJson, "$.data.content[?(@.id == ${comment1.id})].likeCount")
-            val comment1IsLiked: List<Boolean> = JsonPath.read(responseJson, "$.data.content[?(@.id == ${comment1.id})].isLiked")
+            // ====== comment1 (본인이 누른 좋아요) ======
+            val comment1LikeCounts: List<Int> =
+                JsonPath.read(responseJson, "$.data.content[?(@.id == ${comment1.id})].likeCount")
+            val comment1Liked: List<Boolean> =
+                JsonPath.read(responseJson, "$.data.content[?(@.id == ${comment1.id})].liked")
+
             assertThat(comment1LikeCounts).hasSize(1)
             assertThat(comment1LikeCounts[0]).isEqualTo(1)
-            assertThat(comment1IsLiked[0]).isTrue()
+            assertThat(comment1Liked[0]).isTrue()
 
-            val comment2LikeCounts: List<Int> = JsonPath.read(responseJson, "$.data.content[?(@.id == ${comment2.id})].likeCount")
-            val comment2IsLiked: List<Boolean> = JsonPath.read(responseJson, "$.data.content[?(@.id == ${comment2.id})].isLiked")
+            // ====== comment2 (다른 사람이 누른 좋아요) ======
+            val comment2LikeCounts: List<Int> =
+                JsonPath.read(responseJson, "$.data.content[?(@.id == ${comment2.id})].likeCount")
+            val comment2Liked: List<Boolean> =
+                JsonPath.read(responseJson, "$.data.content[?(@.id == ${comment2.id})].liked")
+
             assertThat(comment2LikeCounts).hasSize(1)
             assertThat(comment2LikeCounts[0]).isEqualTo(1)
-            assertThat(comment2IsLiked[0]).isFalse()
+            assertThat(comment2Liked[0]).isFalse()
 
-            val comment3LikeCounts: List<Int> = JsonPath.read(responseJson, "$.data.content[?(@.id == ${comment3.id})].likeCount")
-            val comment3IsLiked: List<Boolean> = JsonPath.read(responseJson, "$.data.content[?(@.id == ${comment3.id})].isLiked")
+            // ====== comment3 (좋아요 없음) ======
+            val comment3LikeCounts: List<Int> =
+                JsonPath.read(responseJson, "$.data.content[?(@.id == ${comment3.id})].likeCount")
+            val comment3Liked: List<Boolean> =
+                JsonPath.read(responseJson, "$.data.content[?(@.id == ${comment3.id})].liked")
+
             assertThat(comment3LikeCounts).hasSize(1)
             assertThat(comment3LikeCounts[0]).isEqualTo(0)
-            assertThat(comment3IsLiked[0]).isFalse()
+            assertThat(comment3Liked[0]).isFalse()
         }
     }
 
