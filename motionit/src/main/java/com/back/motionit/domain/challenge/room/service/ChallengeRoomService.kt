@@ -19,15 +19,14 @@ import com.back.motionit.global.error.code.ChallengeRoomErrorCode
 import com.back.motionit.global.error.exception.BusinessException
 import com.back.motionit.global.event.EventPublisher
 import com.back.motionit.global.service.AwsS3Service
-
 import org.springframework.beans.factory.ObjectProvider
+
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import org.springframework.util.StringUtils
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
@@ -36,18 +35,16 @@ import java.time.temporal.ChronoUnit
 class ChallengeRoomService(
     private val challengeRoomRepository: ChallengeRoomRepository,
     private val challengeParticipantService: ChallengeParticipantService,
-    private val s3Provider: ObjectProvider<AwsS3Service>,
     private val eventPublisher: EventPublisher,
     private val userRepository: UserRepository,
     private val participantRepository: ChallengeParticipantRepository,
     private val participantService: ChallengeParticipantService,
     private val summaryRepository: ChallengeRoomSummaryRepository,
+    private val s3Provider: ObjectProvider<AwsS3Service>,
     private val videoService: ChallengeVideoService,
 ) {
 
-    private fun s3(): AwsS3Service? {
-        return s3Provider.getIfAvailable()
-    }
+    private fun s3(): AwsS3Service? = s3Provider.getIfAvailable()
 
     @Transactional
     fun createRoom(input: CreateRoomRequest, user: User?): CreateRoomResponse {
@@ -60,12 +57,15 @@ class ChallengeRoomService(
         val host = userRepository.findById(userId)
             .orElseThrow { BusinessException(ChallengeRoomErrorCode.NOT_FOUND_USER) }
 
-        var objectKey = ""
-        var uploadUrl = ""
-
         val s3 = s3()
-        if (s3 != null) {
-            objectKey = s3.buildObjectKey(input.imageFileName) ?: ""
+
+        val imageFileName: String = input.imageFileName
+        val contentType: String = input.contentType
+
+        val objectKey = if (s3 != null && imageFileName.isNotBlank()) {
+            s3.buildObjectKey(imageFileName)
+        } else {
+            ""
         }
 
         val room = mapToRoomObject(input, host, objectKey)
@@ -73,18 +73,22 @@ class ChallengeRoomService(
 
         // 방장 자동 참가 처리, 여기서 실패시 방 생성도 롤백 처리됨
         autoJoinAsHost(createdRoom)
-        videoService.uploadChallengeVideo(userId, createdRoom.id!!, input.videoUrl)
 
-        uploadUrl = if (s3 != null && StringUtils.hasText(objectKey)) {
-            s3.createUploadUrl(objectKey, input.contentType)
+        val uploadUrl = if (s3 != null && objectKey.isNotBlank()) {
+            s3.createUploadUrl(objectKey, contentType)
         } else {
             ""
         }
 
-        val response = mapToCreateRoomResponse(createdRoom, uploadUrl)
-        eventPublisher.publishEvent(RoomEventDto(EventEnums.ROOM))
+        if (input.videoUrl.isNotBlank()) {
+            videoService.requestUploadChallengeVideo(
+                actorId = host.id!!,
+                roomId = createdRoom.id!!,
+                youtubeUrl = input.videoUrl,
+            )
+        }
 
-        return response
+        return mapToCreateRoomResponse(createdRoom, uploadUrl)
     }
 
     @Transactional(readOnly = true)

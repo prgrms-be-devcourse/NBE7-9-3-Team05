@@ -19,16 +19,17 @@ import java.util.*
 class AwsS3Service(
     private val s3: S3Client,
     private val preSigner: S3Presigner,
+) {
 
     @Value("\${aws.s3.bucket-name}")
-    private val bucket: String,
+    private lateinit var bucket: String
 
-    @Value("\${aws.s3.key-prefix}")
-    private val keyPrefix: String,
+    @Value("\${aws.s3.key-prefix:}")
+    private var keyPrefix: String? = ""
 
     @Value("\${aws.s3.presign-minutes:10}")
-    private val preSignMinutes: Long = 0,
-) {
+    private var preSignMinutes: Long = 0
+
     fun buildObjectKey(originalFileName: String): String {
         val dot = originalFileName.lastIndexOf('.')
         val ext: String = if (dot > -1) {
@@ -39,7 +40,7 @@ class AwsS3Service(
 
         val datePath = LocalDate.now().toString().replace("-", "/")
         val uuid = UUID.randomUUID().toString()
-        val prefix = if (keyPrefix.isBlank()) "" else "$keyPrefix/"
+        val prefix = if (keyPrefix.isNullOrBlank()) "" else "$keyPrefix/"
         return String.format("%s%s/%s%s", prefix, datePath, uuid, ext)
     }
 

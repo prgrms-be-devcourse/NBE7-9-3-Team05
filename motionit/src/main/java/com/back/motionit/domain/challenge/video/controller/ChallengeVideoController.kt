@@ -24,12 +24,12 @@ class ChallengeVideoController(
     ): ResponseData<ChallengeVideoResponse> {
         val actor = requestContext.getActor()
 
-        val savedVideo = challengeVideoService.uploadChallengeVideo(
+        challengeVideoService.requestUploadChallengeVideo(
             actor.id!!, roomId, request.youtubeUrl
         )
         return ResponseData.success(
             ChallengeVideoHttp.UPLOAD_SUCCESS_MESSAGE,
-            ChallengeVideoResponse.from(savedVideo)
+            null,
         )
     }
 
