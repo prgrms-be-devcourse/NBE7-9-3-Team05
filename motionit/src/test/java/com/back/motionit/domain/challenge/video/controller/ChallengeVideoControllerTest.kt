@@ -24,7 +24,6 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.MediaType
-import org.springframework.http.converter.HttpMessageConverter
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.authority.AuthorityUtils
 import org.springframework.security.core.context.SecurityContextHolder
@@ -32,10 +31,10 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers
+import org.springframework.test.web.servlet.result.MockMvcResultHandlers.print
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter
-import java.util.function.Consumer
 
 @SecuredIntegrationTest
 internal class ChallengeVideoControllerTest: BaseIntegrationTest() {
@@ -62,9 +61,7 @@ internal class ChallengeVideoControllerTest: BaseIntegrationTest() {
 
     private lateinit var user: User
     private lateinit var room: ChallengeRoom
-
     private lateinit var securityUser: SecurityUser
-    private lateinit var authentication: UsernamePasswordAuthenticationToken
 
     @BeforeEach
     fun setUp() {
@@ -80,8 +77,11 @@ internal class ChallengeVideoControllerTest: BaseIntegrationTest() {
         // 인증 세팅 (ChallengeRoomControllerTest와 동일)
         val authorities = AuthorityUtils.createAuthorityList("ROLE_USER")
         securityUser = SecurityUser(user.id!!, user.password!!, user.nickname, authorities)
-        authentication =
-            UsernamePasswordAuthenticationToken(securityUser, null, securityUser.authorities)
+        val authentication = UsernamePasswordAuthenticationToken(
+            securityUser,
+            null,
+            securityUser.authorities
+        )
         SecurityContextHolder.getContext().authentication = authentication
     }
 
@@ -92,10 +92,11 @@ internal class ChallengeVideoControllerTest: BaseIntegrationTest() {
 
     @Test
     fun printConverters() {
-        adapter.messageConverters.forEach(
-            Consumer { c: HttpMessageConverter<*> -> println("✅ " + c.javaClass.name) }
-        )
+        adapter.messageConverters.forEach { c ->
+            println("✅ ${c.javaClass.name}")
+        }
     }
+
 
     @Test
     @DisplayName("POST `/api/v1/challenge/rooms/{roomId}/videos` - 영상 업로드 성공")
@@ -144,7 +145,7 @@ internal class ChallengeVideoControllerTest: BaseIntegrationTest() {
                 jsonPath("$.msg")
                     .value(ChallengeParticipantErrorCode.NO_PARTICIPANT_IN_ROOM.message)
             )
-            .andDo(MockMvcResultHandlers.print())
+            .andDo(print())
     }
 
     @Test
@@ -166,7 +167,7 @@ internal class ChallengeVideoControllerTest: BaseIntegrationTest() {
                 jsonPath("$.msg").value(ChallengeVideoHttp.GET_TODAY_MISSION_SUCCESS_MESSAGE)
             )
             .andExpect(jsonPath("$.data").isArray())
-            .andDo(MockMvcResultHandlers.print())
+            .andDo(print())
     }
 
     @Test
@@ -185,7 +186,7 @@ internal class ChallengeVideoControllerTest: BaseIntegrationTest() {
                 jsonPath("$.msg")
                     .value(ChallengeParticipantErrorCode.NO_PARTICIPANT_IN_ROOM.message)
             )
-            .andDo(MockMvcResultHandlers.print())
+            .andDo(print())
     }
 
     @Test
@@ -205,7 +206,7 @@ internal class ChallengeVideoControllerTest: BaseIntegrationTest() {
             .andExpect(MockMvcResultMatchers.handler().handlerType(ChallengeVideoController::class.java))
             .andExpect(MockMvcResultMatchers.handler().methodName("deleteVideoByUser"))
             .andExpect(jsonPath("$.msg").value(ChallengeVideoHttp.DELETE_SUCCESS_MESSAGE))
-            .andDo(MockMvcResultHandlers.print())
+            .andDo(print())
 
         Assertions.assertThat(challengeVideoRepository.findById(video.id!!)).isEmpty()
     }
@@ -230,6 +231,6 @@ internal class ChallengeVideoControllerTest: BaseIntegrationTest() {
                 jsonPath("$.msg")
                     .value(ChallengeParticipantErrorCode.NO_PARTICIPANT_IN_ROOM.message)
             )
-            .andDo(MockMvcResultHandlers.print())
+            .andDo(print())
     }
 }
