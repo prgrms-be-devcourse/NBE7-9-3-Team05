@@ -83,7 +83,7 @@ class OutboxProcessorIntegrationTest : BaseIntegrationTest() {
 
         // 인증 세팅 (ChallengeRoomControllerTest와 동일)
         val authorities = AuthorityUtils.createAuthorityList("ROLE_USER")
-        securityUser = SecurityUser(user.id, user.password, user.nickname, authorities)
+        securityUser = SecurityUser(user.id!!, user.password!!, user.nickname, authorities)
         authentication =
             UsernamePasswordAuthenticationToken(securityUser, null, securityUser.authorities)
         SecurityContextHolder.getContext().authentication = authentication
