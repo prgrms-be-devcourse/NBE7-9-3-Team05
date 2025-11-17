@@ -11,11 +11,10 @@ data class CommentRes(
     val content: String,
     val deleted: Boolean,
     val likeCount: Int,
-    val isLiked: Boolean,
+    val liked: Boolean,
     val createdAt: LocalDateTime,
     val updatedAt: LocalDateTime,
 ) {
-
     companion object {
         @JvmStatic
         fun from(comment: Comment, isLiked: Boolean): CommentRes {
@@ -27,7 +26,7 @@ data class CommentRes(
                 content = if (comment.isDeleted) "삭제된 댓글입니다" else comment.content,
                 deleted = comment.isDeleted,
                 likeCount = comment.likeCount,
-                isLiked = isLiked,
+                liked = isLiked,
                 createdAt = comment.createDate!!,
                 updatedAt = comment.modifyDate!!,
             )

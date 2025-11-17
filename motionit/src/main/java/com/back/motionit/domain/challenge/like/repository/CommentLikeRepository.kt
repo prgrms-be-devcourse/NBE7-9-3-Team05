@@ -1,44 +1,26 @@
-package com.back.motionit.domain.challenge.like.repository;
+package com.back.motionit.domain.challenge.like.repository
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import com.back.motionit.domain.challenge.comment.entity.Comment
+import com.back.motionit.domain.challenge.like.entity.CommentLike
+import com.back.motionit.domain.user.entity.User
+import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
+interface CommentLikeRepository : JpaRepository<CommentLike, Long> {
+    fun deleteByCommentAndUser(comment: Comment, user: User)
+    fun existsByCommentAndUser(comment: Comment, user: User): Boolean
+    fun deleteAllByComment(comment: Comment)
 
-import com.back.motionit.domain.challenge.comment.entity.Comment;
-import com.back.motionit.domain.challenge.like.entity.CommentLike;
-import com.back.motionit.domain.user.entity.User;
-
-public interface CommentLikeRepository extends JpaRepository<CommentLike, Long> {
-	Optional<CommentLike> findByCommentAndUser(Comment comment, User user);
-
-	void deleteByCommentAndUser(Comment comment, User user);
-
-	boolean existsByCommentAndUser(Comment comment, User user);
-
-	void deleteAllByComment(Comment comment);
-
-	@Query("""
-		select cl.comment.id
-		from CommentLike cl
-		where cl.user = :user
-			and cl.comment.id in :commentIds
-		""")
-	Set<Long> findCommentIdsLikedByUserInCommentList(
-		@Param("user") User user,
-		@Param("commentIds") List<Long> commentIds
-	);
-
-	default Set<Long> findLikedCommentIdsSafely(User user, List<Long> commentIds) {
-		if (commentIds == null || commentIds.isEmpty()) {
-			return Collections.emptySet();
-		}
-		return findCommentIdsLikedByUserInCommentList(user, commentIds);
-	}
+    @Query("""
+        select cl.comment.id
+        from CommentLike cl
+        where cl.user = :user
+          and cl.comment.id in :commentIds
+        """)
+    fun findCommentIdsLikedByUserInCommentList(
+        @Param("user") user: User,
+        @Param("commentIds") commentIds: List<Long>
+    ): Set<Long>
 
 }
-

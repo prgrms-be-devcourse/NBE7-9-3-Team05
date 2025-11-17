@@ -11,11 +11,15 @@ class CommentHelper internal constructor(
     private val commentRepository: CommentRepository
 ) {
     fun createComment(user: User, room: ChallengeRoom, content: String): Comment {
-        val comment = Comment.builder()
-            .user(user)
-            .challengeRoom(room)
-            .content(content)
-            .build()
+        val comment = Comment(
+            deletedAt = null,
+            challengeRoom = room,
+            user = user,
+            content = content,
+            likeCount = 0,
+            version = null
+        )
+
         return commentRepository.save(comment)
     }
 }

@@ -25,6 +25,7 @@ import org.mockito.Mock
 import org.mockito.Mockito.*
 import org.mockito.junit.jupiter.MockitoExtension
 import org.springframework.test.util.ReflectionTestUtils
+import java.time.LocalDateTime
 import java.util.*
 
 @ExtendWith(MockitoExtension::class)
@@ -78,7 +79,12 @@ class CommentServiceFilteringTest {
             likeCount = 0,
             version = null,
         )
+
+        val now = LocalDateTime.now()
         ReflectionTestUtils.setField(comment, "id", id)
+        ReflectionTestUtils.setField(comment, "createDate", now)
+        ReflectionTestUtils.setField(comment, "modifyDate", now)
+
         return comment
     }
 
@@ -125,7 +131,10 @@ class CommentServiceFilteringTest {
         // save 시 id 부여
         `when`(commentRepository.save(any(Comment::class.java))).thenAnswer { inv ->
             val saved = inv.getArgument<Comment>(0)
+            val now = LocalDateTime.now()
             ReflectionTestUtils.setField(saved, "id", 777L)
+            ReflectionTestUtils.setField(saved, "createDate", now)
+            ReflectionTestUtils.setField(saved, "modifyDate", now)
             saved
         }
 

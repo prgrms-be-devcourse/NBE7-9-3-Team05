@@ -6,9 +6,7 @@ import com.back.motionit.domain.challenge.comment.entity.Comment
 import com.back.motionit.domain.challenge.comment.repository.CommentRepository
 import com.back.motionit.domain.challenge.room.entity.ChallengeRoom
 import com.back.motionit.domain.challenge.room.repository.ChallengeRoomRepository
-import com.back.motionit.domain.challenge.video.entity.ChallengeVideo
 import com.back.motionit.domain.challenge.video.entity.OpenStatus
-import com.back.motionit.domain.challenge.participant.entity.ChallengeParticipant
 import com.back.motionit.domain.user.entity.LoginType
 import com.back.motionit.domain.user.entity.User
 import com.back.motionit.domain.user.repository.UserRepository
@@ -30,7 +28,8 @@ import org.springframework.security.core.authority.AuthorityUtils
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
-import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.time.LocalDateTime
 
 @SecuredIntegrationTest
@@ -95,7 +94,7 @@ class CommentControllerIntegrationTest : BaseIntegrationTest() {
             .build()
         user = userRepository.save(u1)
 
-        // 5) 시드 (room #1)
+
         val r1 = ChallengeRoom(
             user,
             "Room-1",
@@ -105,9 +104,7 @@ class CommentControllerIntegrationTest : BaseIntegrationTest() {
             LocalDateTime.now().minusDays(1),
             LocalDateTime.now().plusDays(30),
             "/img.png",
-            null,
-            ArrayList<ChallengeVideo>(),
-            ArrayList<ChallengeParticipant>()
+            null,   // deletedAt
         )
         room = roomRepository.save(r1)
         participantHelper.createHostParticipant(user, room)
@@ -115,9 +112,18 @@ class CommentControllerIntegrationTest : BaseIntegrationTest() {
     }
 
     private fun authenticateAs(user: User) {
-        val authorities = AuthorityUtils.createAuthorityList("ROLE")
-        securityUser = SecurityUser(user.id, user.password, user.nickname, authorities)
-        authentication = UsernamePasswordAuthenticationToken(securityUser, null, securityUser.authorities)
+        val authorities = AuthorityUtils.createAuthorityList("ROLE_USER")
+
+        val id = user.id ?: throw IllegalStateException("Test user id is null")
+        val password = user.password ?: ""   // 테스트용이라 빈 문자열 써도 무방
+        val nickname = user.nickname ?: ""
+
+        securityUser = SecurityUser(id, password, nickname, authorities)
+        authentication = UsernamePasswordAuthenticationToken(
+            securityUser,
+            null,
+            securityUser.authorities
+        )
         SecurityContextHolder.getContext().authentication = authentication
     }
 
