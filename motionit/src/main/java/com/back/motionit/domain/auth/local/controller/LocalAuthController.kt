@@ -21,12 +21,12 @@ class LocalAuthController(
 ) : LocalAuthApi {
 
     override fun signup(
-        @Valid @RequestBody request: SignupRequest
+        @RequestBody @Valid request: SignupRequest
     ): ResponseData<AuthResponse> =
         success(localAuthService.signup(request))
 
     override fun login(
-        @Valid @RequestBody request: LoginRequest
+        @RequestBody @Valid request: LoginRequest
     ): ResponseData<AuthResponse> =
         success(localAuthService.login(request))
 
