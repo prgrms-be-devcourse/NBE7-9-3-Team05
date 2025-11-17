@@ -62,12 +62,14 @@ class JwtUtil {
             }
 
 
-            return Jwts
-                .parser()
+            val parsed = Jwts.parser()
                 .verifyWith(secretKey)
                 .build()
                 .parse(jwt)
-                .payload as Map<String, Any>
+
+            val claims = parsed.payload as? io.jsonwebtoken.Claims ?: return null
+
+            return claims
 
 
         }

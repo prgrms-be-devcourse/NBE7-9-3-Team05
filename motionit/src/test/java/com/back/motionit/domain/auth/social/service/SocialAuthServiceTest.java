@@ -55,7 +55,7 @@ class SocialAuthServiceTest {
 		String userProfile = "https://profile.com/image.jpg";
 
 		given(userRepository.findByKakaoId(kakaoId)).willReturn(Optional.empty());
-		given(userRepository.findByNickname(nickname)).willReturn(Optional.empty());
+		given(userRepository.existsByNickname(nickname)).willReturn(false);
 		given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
 
 		// when
@@ -70,7 +70,7 @@ class SocialAuthServiceTest {
 		assertThat(result.getLoginType()).isEqualTo(loginType);
 		assertThat(result.getUserProfile()).isEqualTo(userProfile);
 
-		verify(userRepository).findByNickname(nickname);
+		verify(userRepository).existsByNickname(nickname);
 		verify(passwordEncoder, never()).encode(anyString());
 		verify(userRepository).save(any(User.class));
 	}
@@ -89,7 +89,7 @@ class SocialAuthServiceTest {
 		User existingUser = User.builder()
 			.nickname(nickname)
 			.build();
-		given(userRepository.findByNickname(nickname)).willReturn(Optional.of(existingUser));
+		given(userRepository.existsByNickname(nickname)).willReturn(true);
 
 		// when & then
 		assertThatThrownBy(() ->
@@ -97,7 +97,7 @@ class SocialAuthServiceTest {
 			.isInstanceOf(BusinessException.class)
 			.hasFieldOrPropertyWithValue("errorCode", AuthErrorCode.NICKNAME_DUPLICATED);
 
-		verify(userRepository).findByNickname(nickname);
+		verify(userRepository).existsByNickname(nickname);
 		verify(userRepository, never()).save(any(User.class));
 	}
 

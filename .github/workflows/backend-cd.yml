@@ -39,6 +39,15 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Create application config files from secrets
+        working-directory: motionit
+        run: |
+          mkdir -p src/main/resources
+          echo "${{ secrets.APPLICATION_YML }}" > src/main/resources/application.yml
+          echo "${{ secrets.APPLICATION_PROD_YML }}" > src/main/resources/application-prod.yml
+          echo "✓ application.yml created from secret"
+          echo "✓ application-prod.yml created from secret"
+
       - name: Build and Push Docker Image
         working-directory: motionit
         run: |
