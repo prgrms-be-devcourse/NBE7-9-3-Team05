@@ -19,24 +19,18 @@ echo -e "${BLUE}=================================${NC}"
 echo -e "${BLUE}  Blue-Green Deployment${NC}"
 echo -e "${BLUE}=================================${NC}"
 
-echo -e "\n${YELLOW}[Pre-check] Verifying requirements...${NC}"
-if ! command -v docker &> /dev/null; then
-    echo -e "${RED}✗ Docker is not installed${NC}"
-    exit 1
+echo -e "\n${YELLOW}[0/7] Checking Docker network...${NC}"
+if ! docker network ls | grep -q "motionit-network"; then
+    docker network create motionit-network
+    echo -e "${GREEN}Docker network created${NC}"
+else
+    echo -e "${GREEN}Docker network exists${NC}"
 fi
 
-if ! docker ps &> /dev/null; then
-    echo -e "${RED}✗ Docker permission denied. User may not be in docker group.${NC}"
-    echo -e "${YELLOW}  Try: sudo usermod -aG docker \$USER && newgrp docker${NC}"
-    exit 1
+if ! docker network inspect motionit-network | grep -q "motionit-mysql"; then
+    docker network connect motionit-network motionit-mysql || true
+    echo -e "${GREEN}MySQL connected to network${NC}"
 fi
-
-if ! command -v nginx &> /dev/null; then
-    echo -e "${RED}✗ Nginx is not installed${NC}"
-    exit 1
-fi
-
-echo -e "${GREEN}✓ All requirements verified${NC}"
 
 echo -e "\n${YELLOW}[1/7] Checking current active container...${NC}"
 
@@ -87,14 +81,12 @@ echo -e "\n${YELLOW}[4/7] Starting ${NEW_COLOR} container...${NC}"
 docker run -d \
   --name ${NEW_CONTAINER} \
   --restart unless-stopped \
-  --add-host=host.docker.internal:host-gateway \
+  --network motionit-network \
   -p ${NEW_PORT}:8080 \
-  -v /home/ubuntu/aws_motionit_private_key.pem:/app/aws_motionit_private_key.pem:ro \
+  -v /home/ubuntu/application-prod.yml:/app/application-prod.yml:ro \
   -e SPRING_PROFILES_ACTIVE=prod \
-  -e SPRING_DATASOURCE_URL="${DATABASE_URL}" \
-  -e SPRING_DATASOURCE_USERNAME="${DB_USERNAME}" \
-  -e SPRING_DATASOURCE_PASSWORD="${DB_PASSWORD}" \
-  -e SPRING_DATASOURCE_DRIVER_CLASS_NAME="com.mysql.cj.jdbc.Driver" \
+  -e SPRING_CONFIG_ADDITIONAL_LOCATION=file:/app/application-prod.yml \
+  -e DATABASE_URL="${DATABASE_URL}" \
   -e DB_USERNAME="${DB_USERNAME}" \
   -e DB_PASSWORD="${DB_PASSWORD}" \
   -e AWS_ACCESS_KEY="${AWS_ACCESS_KEY}" \
@@ -102,7 +94,7 @@ docker run -d \
   -e AWS_S3_BUCKET_NAME="${AWS_S3_BUCKET_NAME}" \
   -e AWS_CLOUDFRONT_DOMAIN="${AWS_CLOUDFRONT_DOMAIN}" \
   -e AWS_CLOUDFRONT_KEY_ID="${AWS_CLOUDFRONT_KEY_ID}" \
-  -e AWS_CLOUDFRONT_PRIVATE_KEY_PATH="/app/aws_motionit_private_key.pem" \
+  -e AWS_CLOUDFRONT_PRIVATE_KEY_PATH="${AWS_CLOUDFRONT_PRIVATE_KEY_PATH}" \
   -e JWT_SECRET="${JWT_SECRET}" \
   -e JWT_ACCESS_TOKEN_EXPIRATION="${JWT_ACCESS_TOKEN_EXPIRATION}" \
   -e JWT_REFRESH_TOKEN_EXPIRATION="${JWT_REFRESH_TOKEN_EXPIRATION}" \
@@ -130,10 +122,8 @@ done
 
 if [ $RETRY_COUNT -eq $MAX_RETRY ]; then
     echo -e "\n${RED}Health check failed after ${MAX_RETRY} retries${NC}"
-    echo -e "${RED}Showing ${NEW_COLOR} container logs (last 200 lines):${NC}"
-    docker logs --tail 200 ${NEW_CONTAINER}
-    echo -e "\n${RED}Container inspect:${NC}"
-    docker inspect ${NEW_CONTAINER} | grep -A 20 "State"
+    echo -e "${RED}Showing ${NEW_COLOR} container logs:${NC}"
+    docker logs --tail 50 ${NEW_CONTAINER}
     echo -e "${RED}Rolling back...${NC}"
     docker stop ${NEW_CONTAINER} || true
     docker rm ${NEW_CONTAINER} || true
