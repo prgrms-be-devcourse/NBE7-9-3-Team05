@@ -1,121 +1,109 @@
-package com.back.motionit.security.handler;
+package com.back.motionit.security.handler
 
-import static org.mockito.BDDMockito.*;
+import com.back.motionit.domain.auth.social.service.SocialAuthService
+import com.back.motionit.global.request.RequestContext
+import com.back.motionit.security.SecurityUser
+import com.back.motionit.security.jwt.JwtTokenDto.Companion.builder
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
+import org.mockito.BDDMockito.given
+import org.mockito.Mock
+import org.mockito.Mockito.verify
+import org.mockito.junit.jupiter.MockitoExtension
+import org.springframework.mock.web.MockHttpServletRequest
+import org.springframework.mock.web.MockHttpServletResponse
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
+import org.springframework.security.core.Authentication
+import org.springframework.security.core.authority.SimpleGrantedAuthority
+import java.nio.charset.StandardCharsets
+import java.util.*
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-import java.util.List;
+@ExtendWith(MockitoExtension::class)
+internal class CustomOAuth2LoginSuccessHandlerTest {
+    @Mock
+    private lateinit var socialAuthService: SocialAuthService
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
+    @Mock
+    private lateinit var requestContext: RequestContext
 
-import com.back.motionit.domain.auth.social.service.SocialAuthService;
-import com.back.motionit.global.request.RequestContext;
-import com.back.motionit.security.SecurityUser;
-import com.back.motionit.security.jwt.JwtTokenDto;
+    @Test
+    @DisplayName("OAuth2 로그인 성공 → 토큰 생성 → 쿠키 저장 → redirect 동작 검증")
+    fun onAuthenticationSuccess_Success() {
 
-@ExtendWith(MockitoExtension.class)
-class CustomOAuth2LoginSuccessHandlerTest {
+        val handler =
+            CustomOAuth2LoginSuccessHandler(socialAuthService, requestContext)
 
-	@Mock
-	private SocialAuthService socialAuthService;
+        val userId = 99L
+        val securityUser = SecurityUser(
+            userId,
+            "pw",
+            "testUser",
+            listOf(SimpleGrantedAuthority("ROLE_USER"))
+        )
 
-	@Mock
-	private RequestContext requestContext;
+        val authentication: Authentication =
+            UsernamePasswordAuthenticationToken(securityUser, null, securityUser.authorities)
 
-	@Test
-	@DisplayName("OAuth2 로그인 성공 → 토큰 생성 → 쿠키 저장 → redirect 동작 검증")
-	void onAuthenticationSuccess_Success() throws Exception {
+        val request = MockHttpServletRequest()
+        val response = MockHttpServletResponse()
 
-		// given
-		CustomOAuth2LoginSuccessHandler handler =
-			new CustomOAuth2LoginSuccessHandler(socialAuthService, requestContext);
+        val redirectUrl = "/rooms/123"
+        val encodedState = Base64.getUrlEncoder()
+            .withoutPadding()
+            .encodeToString("randomstate#$redirectUrl".toByteArray(StandardCharsets.UTF_8))
 
-		Long userId = 99L;
-		SecurityUser securityUser = new SecurityUser(
-			userId,
-			"pw",
-			"testUser",
-			List.of(new SimpleGrantedAuthority("ROLE_USER"))
-		);
+        request.setParameter("state", encodedState)
 
-		Authentication authentication =
-			new UsernamePasswordAuthenticationToken(securityUser, null, securityUser.getAuthorities());
+        val tokens = builder()
+            .grantType("Bearer")
+            .accessToken("accessABC")
+            .refreshToken("refreshXYZ")
+            .accessTokenExpiresIn(3600L)
+            .build()
 
-		MockHttpServletRequest request = new MockHttpServletRequest();
-		MockHttpServletResponse response = new MockHttpServletResponse();
+        given(socialAuthService.generateTokensById(userId)).willReturn(tokens)
 
-		String redirectUrl = "/rooms/123";
-		String encodedState = Base64.getUrlEncoder()
-			.withoutPadding()
-			.encodeToString(("randomstate#" + redirectUrl).getBytes(StandardCharsets.UTF_8));
+        handler.onAuthenticationSuccess(request, response, authentication)
 
-		request.setParameter("state", encodedState);
+        verify(socialAuthService).generateTokensById(userId)
+        verify(requestContext).setCookie("accessToken", "accessABC")
+        verify(requestContext).setCookie("refreshToken", "refreshXYZ")
+        verify(requestContext).sendRedirect(redirectUrl)
+    }
 
-		JwtTokenDto tokens = JwtTokenDto.builder()
-			.grantType("Bearer")
-			.accessToken("accessABC")
-			.refreshToken("refreshXYZ")
-			.accessTokenExpiresIn(3600L)
-			.build();
+    @Test
+    @DisplayName("state 값이 없을 때 기본 '/' 로 redirect")
+    fun onAuthenticationSuccess_NoState_RedirectRoot() {
 
-		given(socialAuthService.generateTokensById(userId))
-			.willReturn(tokens);
+        val handler =
+            CustomOAuth2LoginSuccessHandler(socialAuthService, requestContext)
 
-		// when
-		handler.onAuthenticationSuccess(request, response, authentication);
+        val userId = 10L
+        val securityUser = SecurityUser(
+            userId,
+            "",
+            "testUser",
+            listOf(SimpleGrantedAuthority("ROLE_USER"))
+        )
 
-		// then
-		verify(socialAuthService).generateTokensById(userId);
-		verify(requestContext).setCookie("accessToken", "accessABC");
-		verify(requestContext).setCookie("refreshToken", "refreshXYZ");
-		verify(requestContext).sendRedirect(redirectUrl);
-	}
+        val authentication: Authentication =
+            UsernamePasswordAuthenticationToken(securityUser, null, securityUser.authorities)
 
-	@Test
-	@DisplayName("state 값이 없을 때 기본 '/' 로 redirect")
-	void onAuthenticationSuccess_NoState_RedirectRoot() throws Exception {
+        val request = MockHttpServletRequest()
+        val response = MockHttpServletResponse()
 
-		// given
-		CustomOAuth2LoginSuccessHandler handler =
-			new CustomOAuth2LoginSuccessHandler(socialAuthService, requestContext);
+        val tokens = builder()
+            .grantType("Bearer")
+            .accessToken("ATK")
+            .refreshToken("RTK")
+            .accessTokenExpiresIn(3600L)
+            .build()
 
-		Long userId = 10L;
-		SecurityUser securityUser = new SecurityUser(
-			userId,
-			"",
-			"testUser",
-			List.of(new SimpleGrantedAuthority("ROLE_USER"))
-		);
+        given(socialAuthService.generateTokensById(userId)).willReturn(tokens)
 
-		Authentication authentication =
-			new UsernamePasswordAuthenticationToken(securityUser, null, securityUser.getAuthorities());
+        handler.onAuthenticationSuccess(request, response, authentication)
 
-		MockHttpServletRequest request = new MockHttpServletRequest();
-		MockHttpServletResponse response = new MockHttpServletResponse();
-
-		JwtTokenDto tokens = JwtTokenDto.builder()
-			.grantType("Bearer")
-			.accessToken("ATK")
-			.refreshToken("RTK")
-			.accessTokenExpiresIn(3600L)
-			.build();
-
-		given(socialAuthService.generateTokensById(userId))
-			.willReturn(tokens);
-
-		// when
-		handler.onAuthenticationSuccess(request, response, authentication);
-
-		// then
-		verify(requestContext).sendRedirect("/");
-	}
+        verify(requestContext).sendRedirect("/")
+    }
 }

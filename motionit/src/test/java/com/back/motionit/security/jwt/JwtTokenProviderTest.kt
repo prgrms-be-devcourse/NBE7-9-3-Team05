@@ -1,154 +1,131 @@
-package com.back.motionit.security.jwt;
+package com.back.motionit.security.jwt
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.BDDMockito.*;
+import com.back.motionit.domain.user.entity.User
+import com.back.motionit.standard.ut.JwtUtil
+import com.back.motionit.standard.ut.JwtUtil.Jwt.isExpired
+import com.back.motionit.standard.ut.JwtUtil.Jwt.payloadOrNull
+import com.back.motionit.standard.ut.JwtUtil.Jwt.toString
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
+import org.mockito.Mockito.mockStatic
+import org.mockito.junit.jupiter.MockitoExtension
+import org.springframework.test.util.ReflectionTestUtils.setField
 
-import java.util.Map;
+@ExtendWith(MockitoExtension::class)
+internal class JwtTokenProviderTest {
+    private fun testProvider(): JwtTokenProvider {
+        return JwtTokenProvider(
+            "test-secret",
+            3600L,
+            1209600000L
+        )
+    }
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.MockedStatic;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
+    @Test
+    @DisplayName("Access 토큰 생성 테스트 - JwtUtil에 올바른 값 전달되는지 검증")
+    fun generateAccessToken_Success() {
 
-import com.back.motionit.domain.user.entity.User;
-import com.back.motionit.standard.ut.JwtUtil;
+        val provider = testProvider()
+        setField(provider, "secret", "test-secret")
+        setField(provider, "accessTokenExpiration", 3600L)
 
-@ExtendWith(MockitoExtension.class)
-class JwtTokenProviderTest {
+        val user = User(1L, "testUser")
 
-	private JwtTokenProvider testProvider() {
-		return new JwtTokenProvider(
-			"test-secret",
-			3600L,
-			1209600000L
-		);
-	}
+        mockStatic(JwtUtil.Jwt::class.java).use { mockedJwt ->
+            mockedJwt.`when`<Any?> {
+                toString(
+                    "test-secret",
+                    3600L,
+                    mapOf("id" to 1L, "nickname" to "testUser")
+                )
+            }
+                .thenReturn("mock-access-token")
 
-	@Test
-	@DisplayName("Access 토큰 생성 테스트 - JwtUtil에 올바른 값 전달되는지 검증")
-	void generateAccessToken_Success() {
+            val token = provider.generateAccessToken(user)
 
-		// given
-		JwtTokenProvider provider = testProvider();
-		ReflectionTestUtils.setField(provider, "secret", "test-secret");
-		ReflectionTestUtils.setField(provider, "accessTokenExpiration", 3600L);
+            assertThat(token).isEqualTo("mock-access-token")
+        }
+    }
 
-		User user = new User(1L, "testUser");
+    @Test
+    @DisplayName("Refresh 토큰 생성 테스트 - JwtUtil에 올바른 값 전달되는지 검증")
+    fun generateRefreshToken_Success() {
 
-		try (MockedStatic<JwtUtil.Jwt> mockedJwt = mockStatic(JwtUtil.Jwt.class)) {
+        val provider = testProvider()
+        setField(provider, "secret", "test-secret")
+        setField(provider, "refreshTokenExpiration", 7200L)
 
-			mockedJwt.when(() ->
-					JwtUtil.Jwt.toString(
-						"test-secret",
-						3600L,
-						Map.of("id", 1L, "nickname", "testUser")
-					)
-				)
-				.thenReturn("mock-access-token");
+        val user = User(1L, "testUser")
 
-			// when
-			String token = provider.generateAccessToken(user);
+        mockStatic(JwtUtil.Jwt::class.java).use { mockedJwt ->
+            mockedJwt.`when`<Any?> {
+                toString(
+                    "test-secret",
+                    7200L,
+                    mapOf("id" to 1L, "nickname" to "testUser")
+                )
+            }
+                .thenReturn("mock-refresh-token")
 
-			// then
-			assertThat(token).isEqualTo("mock-access-token");
-		}
-	}
+            val token = provider.generateRefreshToken(user)
 
-	@Test
-	@DisplayName("Refresh 토큰 생성 테스트 - JwtUtil에 올바른 값 전달되는지 검증")
-	void generateRefreshToken_Success() {
+            assertThat(token).isEqualTo("mock-refresh-token")
+        }
+    }
 
-		// given
-		JwtTokenProvider provider = testProvider();
-		ReflectionTestUtils.setField(provider, "secret", "test-secret");
-		ReflectionTestUtils.setField(provider, "refreshTokenExpiration", 7200L);
+    @Test
+    @DisplayName("payloadOrNull - JwtUtil에서 payload 반환 시 정상 변환")
+    fun payloadOrNull_Success() {
+        val provider = testProvider()
+        setField(provider, "secret", "test-secret")
 
-		User user = new User(1L, "testUser");
+        val fakePayload = mapOf(
+            "id" to 1,
+            "nickname" to "testUser"
+        )
 
-		try (MockedStatic<JwtUtil.Jwt> mockedJwt = mockStatic(JwtUtil.Jwt.class)) {
+        mockStatic(JwtUtil.Jwt::class.java).use { mockedJwt ->
+            mockedJwt.`when`<Any?> { payloadOrNull("validToken", "test-secret") }
+                .thenReturn(fakePayload)
 
-			mockedJwt.when(() ->
-					JwtUtil.Jwt.toString(
-						"test-secret",
-						7200L,
-						Map.of("id", 1L, "nickname", "testUser")
-					)
-				)
-				.thenReturn("mock-refresh-token");
+            val result = provider.payloadOrNull("validToken")
 
-			// when
-			String token = provider.generateRefreshToken(user);
+            assertThat(result!!["id"]).isEqualTo(1L)
+            assertThat(result["nickname"]).isEqualTo("testUser")
+        }
+    }
 
-			// then
-			assertThat(token).isEqualTo("mock-refresh-token");
-		}
-	}
+    @Test
+    @DisplayName("payloadOrNull - null 반환 시 null 반환")
+    fun payloadOrNull_ReturnsNull() {
+        val provider = testProvider()
+        setField(provider, "secret", "test-secret")
 
-	@Test
-	@DisplayName("payloadOrNull - JwtUtil에서 payload 반환 시 정상 변환")
-	void payloadOrNull_Success() {
+        mockStatic(JwtUtil.Jwt::class.java).use { mockedJwt ->
+            mockedJwt.`when`<Any?> { payloadOrNull("invalidToken", "test-secret") }
+                .thenReturn(null)
 
-		JwtTokenProvider provider = testProvider();
-		ReflectionTestUtils.setField(provider, "secret", "test-secret");
+            val result = provider.payloadOrNull("invalidToken")
 
-		Map<String, Object> fakePayload = Map.of(
-			"id", 1,
-			"nickname", "testUser"
-		);
+            assertThat(result).isNull()
+        }
+    }
 
-		try (MockedStatic<JwtUtil.Jwt> mockedJwt = mockStatic(JwtUtil.Jwt.class)) {
+    @DisplayName("isExpired - JwtUtil의 isExpired 결과를 그대로 반환")
+    @Test
+    fun isExpired_Success() {
+        val provider = testProvider()
+        setField(provider, "secret", "test-secret")
 
-			mockedJwt.when(() -> JwtUtil.Jwt.payloadOrNull("validToken", "test-secret"))
-				.thenReturn(fakePayload);
+        mockStatic(JwtUtil.Jwt::class.java).use { mockedJwt ->
+            mockedJwt.`when`<Any?> { isExpired("expiredToken", "test-secret") }
+                .thenReturn(true)
 
-			// when
-			Map<String, Object> result = provider.payloadOrNull("validToken");
+            val result = provider.isExpired("expiredToken")
 
-			// then
-			assertThat(result.get("id")).isEqualTo(1L);
-			assertThat(result.get("nickname")).isEqualTo("testUser");
-		}
-	}
-
-	@Test
-	@DisplayName("payloadOrNull - null 반환 시 null 반환")
-	void payloadOrNull_ReturnsNull() {
-
-		JwtTokenProvider provider = testProvider();
-		ReflectionTestUtils.setField(provider, "secret", "test-secret");
-
-		try (MockedStatic<JwtUtil.Jwt> mockedJwt = mockStatic(JwtUtil.Jwt.class)) {
-
-			mockedJwt.when(() -> JwtUtil.Jwt.payloadOrNull("invalidToken", "test-secret"))
-				.thenReturn(null);
-
-			// when
-			Map<String, Object> result = provider.payloadOrNull("invalidToken");
-
-			// then
-			assertThat(result).isNull();
-		}
-	}
-
-	@Test
-	@DisplayName("isExpired - JwtUtil의 isExpired 결과를 그대로 반환")
-	void isExpired_Success() {
-
-		JwtTokenProvider provider = testProvider();
-		ReflectionTestUtils.setField(provider, "secret", "test-secret");
-
-		try (MockedStatic<JwtUtil.Jwt> mockedJwt = mockStatic(JwtUtil.Jwt.class)) {
-
-			mockedJwt.when(() -> JwtUtil.Jwt.isExpired("expiredToken", "test-secret"))
-				.thenReturn(true);
-
-			// when
-			boolean result = provider.isExpired("expiredToken");
-
-			// then
-			assertThat(result).isTrue();
-		}
-	}
+            assertThat(result).isTrue()
+        }
+    }
 }
