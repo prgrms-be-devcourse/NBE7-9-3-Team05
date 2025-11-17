@@ -1,154 +1,142 @@
-package com.back.motionit.security.oauth;
+package com.back.motionit.security.oauth
 
-import static org.assertj.core.api.Assertions.*;
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
+import org.mockito.Mock
+import org.mockito.junit.jupiter.MockitoExtension
+import org.springframework.mock.web.MockHttpServletRequest
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository
+import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest
+import org.springframework.test.util.ReflectionTestUtils.invokeMethod
+import org.springframework.test.util.ReflectionTestUtils.setField
+import java.nio.charset.StandardCharsets
+import java.util.*
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
+@ExtendWith(MockitoExtension::class)
+internal class CustomOAuth2AuthorizationRequestResolverTest {
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
-import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
-import org.springframework.test.util.ReflectionTestUtils;
+    @Mock
+    private lateinit var clientRegistrationRepository: ClientRegistrationRepository
 
-@ExtendWith(MockitoExtension.class)
-class CustomOAuth2AuthorizationRequestResolverTest {
+    @Test
+    @DisplayName("authorizationRequest = null → null 반환")
+    fun resolveReturnsNull_WhenAuthorizationRequestIsNull() {
 
-	@Mock
-	private ClientRegistrationRepository clientRegistrationRepository;
+        val resolver =
+            CustomOAuth2AuthorizationRequestResolver(clientRegistrationRepository)
 
-	@Test
-	@DisplayName("authorizationRequest = null → null 반환")
-	void resolveReturnsNull_WhenAuthorizationRequestIsNull() {
+        val request = MockHttpServletRequest()
 
-		// given
-		CustomOAuth2AuthorizationRequestResolver resolver =
-			new CustomOAuth2AuthorizationRequestResolver(clientRegistrationRepository);
+        val result =
+            invokeMethod<OAuth2AuthorizationRequest>(resolver, "customizeState", null, request)
 
-		MockHttpServletRequest request = new MockHttpServletRequest();
+        assertThat(result).isNull()
+    }
 
-		// defaultResolver().resolve() 가 null이라고 가정
-		OAuth2AuthorizationRequest result =
-			ReflectionTestUtils.invokeMethod(resolver, "customizeState", null, request);
+    @Test
+    @DisplayName("redirectUrl 파라미터가 있으면 originState#redirectUrl 인코딩 후 state에 반영")
+    fun resolve_CustomState_WhenRedirectUrlProvided() {
 
-		// then
-		assertThat(result).isNull();
-	}
+        val resolver =
+            CustomOAuth2AuthorizationRequestResolver(clientRegistrationRepository)
 
-	@Test
-	@DisplayName("redirectUrl 파라미터가 있으면 originState#redirectUrl 인코딩 후 state에 반영")
-	void resolve_CustomState_WhenRedirectUrlProvided() {
+        setField(resolver, "frontendRedirectUrl", "/default")
 
-		// given
-		CustomOAuth2AuthorizationRequestResolver resolver =
-			new CustomOAuth2AuthorizationRequestResolver(clientRegistrationRepository);
+        val request = MockHttpServletRequest().apply {
+            setParameter("redirectUrl", "/mypage")
+        }
 
-		ReflectionTestUtils.setField(resolver, "frontendRedirectUrl", "/default");
+        val authorizationRequest =
+            OAuth2AuthorizationRequest.authorizationCode()
+                .authorizationUri("https://kauth.kakao.com/auth")
+                .clientId("kakaoClient")
+                .redirectUri("http://localhost/login/oauth2/code/kakao")
+                .state("STATE123") // originState
+                .build()
 
-		MockHttpServletRequest request = new MockHttpServletRequest();
-		request.setParameter("redirectUrl", "/mypage");
+        val result = invokeMethod<OAuth2AuthorizationRequest>(
+            resolver,
+            "customizeState",
+            authorizationRequest,
+            request
+        )
 
-		OAuth2AuthorizationRequest authorizationRequest =
-			OAuth2AuthorizationRequest.authorizationCode()
-				.authorizationUri("https://kauth.kakao.com/auth")
-				.clientId("kakaoClient")
-				.redirectUri("http://localhost/login/oauth2/code/kakao")
-				.state("STATE123") // originState
-				.build();
+        val expectedStateRaw = "STATE123#/mypage"
+        val expectedEncoded = Base64.getUrlEncoder()
+            .withoutPadding()
+            .encodeToString(expectedStateRaw.toByteArray(StandardCharsets.UTF_8))
 
-		// when — private customizeState() 직접 호출
-		OAuth2AuthorizationRequest result = ReflectionTestUtils.invokeMethod(
-			resolver,
-			"customizeState",
-			authorizationRequest,
-			request
-		);
+        assertThat(result!!.state).isEqualTo(expectedEncoded)
+    }
 
-		// then
-		String expectedStateRaw = "STATE123#/mypage";
-		String expectedEncoded = Base64.getUrlEncoder()
-			.withoutPadding()
-			.encodeToString(expectedStateRaw.getBytes(StandardCharsets.UTF_8));
+    @Test
+    @DisplayName("redirectUrl 없으면 frontendRedirectUrl 사용")
+    fun resolve_UsesFrontendRedirectUrl_WhenRedirectUrlMissing() {
 
-		assertThat(result.getState()).isEqualTo(expectedEncoded);
-	}
+        val resolver =
+            CustomOAuth2AuthorizationRequestResolver(clientRegistrationRepository)
 
-	@Test
-	@DisplayName("redirectUrl 없으면 frontendRedirectUrl 사용")
-	void resolve_UsesFrontendRedirectUrl_WhenRedirectUrlMissing() {
+        setField(resolver, "frontendRedirectUrl", "/default-url")
 
-		// given
-		CustomOAuth2AuthorizationRequestResolver resolver =
-			new CustomOAuth2AuthorizationRequestResolver(clientRegistrationRepository);
+        val request = MockHttpServletRequest()
 
-		ReflectionTestUtils.setField(resolver, "frontendRedirectUrl", "/default-url");
+        val authorizationRequest =
+            OAuth2AuthorizationRequest.authorizationCode()
+                .authorizationUri("https://kauth.kakao.com/auth")
+                .clientId("kakaoClient")
+                .redirectUri("http://localhost/login/oauth2/code/kakao")
+                .state("INIT")
+                .build()
 
-		MockHttpServletRequest request = new MockHttpServletRequest();
+        val result = invokeMethod<OAuth2AuthorizationRequest>(
+            resolver,
+            "customizeState",
+            authorizationRequest,
+            request
+        )
 
-		OAuth2AuthorizationRequest authorizationRequest =
-			OAuth2AuthorizationRequest.authorizationCode()
-				.authorizationUri("https://kauth.kakao.com/auth")
-				.clientId("kakaoClient")
-				.redirectUri("http://localhost/login/oauth2/code/kakao")
-				.state("INIT")
-				.build();
+        val expectedStateRaw = "INIT#/default-url"
+        val expectedEncoded = Base64.getUrlEncoder()
+            .withoutPadding()
+            .encodeToString(expectedStateRaw.toByteArray(StandardCharsets.UTF_8))
 
-		// when
-		OAuth2AuthorizationRequest result = ReflectionTestUtils.invokeMethod(
-			resolver,
-			"customizeState",
-			authorizationRequest,
-			request
-		);
+        assertThat(result!!.state).isEqualTo(expectedEncoded)
+    }
 
-		// then
-		String expectedStateRaw = "INIT#/default-url";
-		String expectedEncoded = Base64.getUrlEncoder()
-			.withoutPadding()
-			.encodeToString(expectedStateRaw.getBytes(StandardCharsets.UTF_8));
+    @Test
+    @DisplayName("originState 가 null 이면 빈 문자열 + #redirectUrl 조합으로 처리")
+    fun resolve_EmptyOriginState_WhenStateIsNull() {
 
-		assertThat(result.getState()).isEqualTo(expectedEncoded);
-	}
+        val resolver =
+            CustomOAuth2AuthorizationRequestResolver(clientRegistrationRepository)
 
-	@Test
-	@DisplayName("originState 가 null 이면 빈 문자열 + #redirectUrl 조합으로 처리")
-	void resolve_EmptyOriginState_WhenStateIsNull() {
+        setField(resolver, "frontendRedirectUrl", "/fallback")
 
-		// given
-		CustomOAuth2AuthorizationRequestResolver resolver =
-			new CustomOAuth2AuthorizationRequestResolver(clientRegistrationRepository);
+        val request = MockHttpServletRequest().apply {
+            setParameter("redirectUrl", "/next")
+        }
 
-		ReflectionTestUtils.setField(resolver, "frontendRedirectUrl", "/fallback");
+        val authorizationRequest =
+            OAuth2AuthorizationRequest.authorizationCode()
+                .authorizationUri("https://kauth.kakao.com/auth")
+                .clientId("kakaoClient")
+                .redirectUri("http://localhost/login/oauth2/code/kakao")
+                .build()
 
-		MockHttpServletRequest request = new MockHttpServletRequest();
-		request.setParameter("redirectUrl", "/next");
+        val result = invokeMethod<OAuth2AuthorizationRequest>(
+            resolver,
+            "customizeState",
+            authorizationRequest,
+            request
+        )
 
-		OAuth2AuthorizationRequest authorizationRequest =
-			OAuth2AuthorizationRequest.authorizationCode()
-				.authorizationUri("https://kauth.kakao.com/auth")
-				.clientId("kakaoClient")
-				.redirectUri("http://localhost/login/oauth2/code/kakao")
-				// state null
-				.build();
+        val expectedRaw = "" + "#/next"
+        val expectedEncoded = Base64.getUrlEncoder()
+            .withoutPadding()
+            .encodeToString(expectedRaw.toByteArray(StandardCharsets.UTF_8))
 
-		// when
-		OAuth2AuthorizationRequest result = ReflectionTestUtils.invokeMethod(
-			resolver,
-			"customizeState",
-			authorizationRequest,
-			request
-		);
-
-		// then
-		String expectedRaw = "" + "#/next";
-		String expectedEncoded = Base64.getUrlEncoder()
-			.withoutPadding()
-			.encodeToString(expectedRaw.getBytes(StandardCharsets.UTF_8));
-
-		assertThat(result.getState()).isEqualTo(expectedEncoded);
-	}
+        assertThat(result!!.state).isEqualTo(expectedEncoded)
+    }
 }

@@ -1,74 +1,60 @@
-package com.back.motionit.domain.challenge.like.service;
+package com.back.motionit.domain.challenge.like.service
 
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.back.motionit.domain.challenge.comment.dto.CommentRes;
-import com.back.motionit.domain.challenge.comment.entity.Comment;
-import com.back.motionit.domain.challenge.comment.repository.CommentRepository;
-import com.back.motionit.domain.challenge.like.entity.CommentLike;
-import com.back.motionit.domain.challenge.like.repository.CommentLikeRepository;
-import com.back.motionit.domain.user.entity.User;
-import com.back.motionit.domain.user.repository.UserRepository;
-import com.back.motionit.global.error.code.CommentLikeErrorCode;
-import com.back.motionit.global.error.exception.BusinessException;
-
-import lombok.RequiredArgsConstructor;
+import com.back.motionit.domain.challenge.comment.dto.CommentRes
+import com.back.motionit.domain.challenge.comment.entity.Comment
+import com.back.motionit.domain.challenge.comment.repository.CommentRepository
+import com.back.motionit.domain.challenge.like.entity.CommentLike
+import com.back.motionit.domain.challenge.like.repository.CommentLikeRepository
+import com.back.motionit.domain.user.entity.User
+import com.back.motionit.domain.user.repository.UserRepository
+import com.back.motionit.global.error.code.CommentLikeErrorCode
+import com.back.motionit.global.error.code.CommonErrorCode
+import com.back.motionit.global.error.exception.BusinessException
+import org.springframework.dao.DataIntegrityViolationException
+import org.springframework.orm.ObjectOptimisticLockingFailureException
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 
 @Service
-@RequiredArgsConstructor
 @Transactional
-public class CommentLikeService {
+class CommentLikeService(
+    private val commentLikeRepository: CommentLikeRepository,
+    private val commentRepository: CommentRepository,
+    private val userRepository: UserRepository
+) {
+    fun findLikedCommentIdsSafely(user: User, commentIds: List<Long>?): Set<Long> {
+        if (commentIds.isNullOrEmpty()) return emptySet()
 
-	private final CommentLikeRepository commentLikeRepository;
-	private final CommentRepository commentRepository;
-	private final UserRepository userRepository;
+        return commentLikeRepository.findCommentIdsLikedByUserInCommentList(user, commentIds)
+    }
 
-	/**
-	 * @param commentId 댓글 ID
-	 * @param userId    사용자 ID
-	 * @return CommentRes 업데이트된 댓글 DTO
-	 */
-	public CommentRes toggleCommentLikeByCommentId(Long commentId, Long userId) {
-		Comment comment = commentRepository.findById(commentId)
-			.orElseThrow(() -> new BusinessException(CommentLikeErrorCode.COMMENT_NOT_FOUND));
+    fun toggleCommentLikeByCommentId(commentId: Long, userId: Long): CommentRes {
+        val comment = commentRepository.findById(commentId)
+            .orElseThrow { BusinessException(CommentLikeErrorCode.COMMENT_NOT_FOUND) }
 
-		User user = userRepository.getReferenceById(userId);
+        val user = userRepository.findById(userId)
+            .orElseThrow { BusinessException(CommonErrorCode.NOT_FOUND) }
 
-		try {
-			boolean isLiked;
+        try {
+            val isLiked = if (commentLikeRepository.existsByCommentAndUser(comment, user)) {
+                commentLikeRepository.deleteByCommentAndUser(comment, user)
+                comment.decrementLikeCount()
+                false
+            } else {
+                createLike(comment, user)
+                true
+            }
+            return CommentRes.from(comment, isLiked)
+        } catch (e: ObjectOptimisticLockingFailureException) {
+            throw BusinessException(CommentLikeErrorCode.LIKE_TOGGLE_FAILED)
+        } catch (e: DataIntegrityViolationException) {
+            throw BusinessException(CommentLikeErrorCode.LIKE_TOGGLE_FAILED)
+        }
+    }
 
-			if (commentLikeRepository.existsByCommentAndUser(comment, user)) {
-				cancelLike(comment, user);
-				isLiked = false;
-			} else {
-				createLike(comment, user);
-				isLiked = true;
-			}
+    private fun createLike(comment: Comment, user: User) {
+        commentLikeRepository.save(CommentLike(comment, user))
+        comment.incrementLikeCount()
+    }
 
-			return CommentRes.from(comment, isLiked);
-
-		} catch (ObjectOptimisticLockingFailureException | DataIntegrityViolationException e) {
-			throw new BusinessException(CommentLikeErrorCode.LIKE_TOGGLE_FAILED);
-		}
-	}
-
-	private void createLike(Comment comment, User user) {
-		CommentLike commentLike = CommentLike.builder()
-			.comment(comment)
-			.user(user)
-			.build();
-		commentLikeRepository.save(commentLike);
-		comment.incrementLikeCount();
-	}
-
-	private void cancelLike(Comment comment, User user) {
-		commentLikeRepository.findByCommentAndUser(comment, user)
-			.ifPresent(commentLike -> {
-				commentLikeRepository.delete(commentLike);
-				comment.decrementLikeCount();
-			});
-	}
 }

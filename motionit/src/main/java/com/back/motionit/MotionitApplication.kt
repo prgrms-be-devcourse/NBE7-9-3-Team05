@@ -1,17 +1,15 @@
-package com.back.motionit;
+package com.back.motionit
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
-import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.boot.SpringApplication
+import org.springframework.boot.autoconfigure.SpringBootApplication
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing
+import org.springframework.scheduling.annotation.EnableScheduling
 
 @SpringBootApplication
 @EnableJpaAuditing
 @EnableScheduling
-public class MotionitApplication {
+class MotionitApplication
 
-	public static void main(String[] args) {
-		SpringApplication.run(MotionitApplication.class, args);
-	}
-
+fun main(args: Array<String>) {
+    SpringApplication.run(MotionitApplication::class.java, *args)
 }

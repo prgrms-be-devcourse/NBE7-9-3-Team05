@@ -1,86 +1,77 @@
-package com.back.motionit.domain.challenge.comment.entity;
+package com.back.motionit.domain.challenge.comment.entity
 
-import java.time.LocalDateTime;
-
-import com.back.motionit.domain.challenge.room.entity.ChallengeRoom;
-import com.back.motionit.domain.user.entity.User;
-import com.back.motionit.global.jpa.entity.BaseEntity;
-
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.Index;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
-import jakarta.persistence.Version;
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import com.back.motionit.domain.challenge.room.entity.ChallengeRoom
+import com.back.motionit.domain.user.entity.User
+import com.back.motionit.global.jpa.entity.BaseEntity
+import jakarta.persistence.*
+import java.time.LocalDateTime
 
 @Entity
 @Table(
-	name = "room_comments",
-	indexes = {
-		@Index(name = "idx_room_comments_room_created", columnList = "room_id, create_date DESC"),
-		@Index(name = "idx_room_comments_author", columnList = "author_id")
-	}
+    name = "room_comments",
+    indexes = [
+        Index(
+            name = "idx_room_comments_room_created",
+            columnList = "room_id, create_date DESC"
+        ),
+        Index(
+            name = "idx_room_comments_author",
+            columnList = "author_id"
+        )
+    ]
 )
-@Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Builder
-public class Comment extends BaseEntity {
+class Comment(
 
-	@Column(name = "deleted_at")
-	private LocalDateTime deletedAt;
+    @Column(name = "deleted_at")
+    var deletedAt: LocalDateTime? = null,
 
-	@ManyToOne(fetch = FetchType.LAZY, optional = false)
-	@JoinColumn(name = "room_id", nullable = false)
-	private ChallengeRoom challengeRoom;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "room_id", nullable = false)
+    var challengeRoom: ChallengeRoom,
 
-	@ManyToOne(fetch = FetchType.LAZY, optional = false)
-	@JoinColumn(name = "author_id", nullable = false)
-	private User user;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "author_id", nullable = false)
+    var user: User,
 
-	@Column(nullable = false, length = 1000)
-	private String content;
+    @Column(nullable = false, length = 1000)
+    var content: String,
 
-	@Builder.Default
-	@Column(name = "like_count", nullable = false, columnDefinition = "INT DEFAULT 0")
-	private Integer likeCount = 0;
+    @Column(
+        name = "like_count",
+        nullable = false,
+        columnDefinition = "INT DEFAULT 0"
+    )
+    var likeCount: Int = 0,
 
-	// ++ Optimistic Lock
-	@Version
-	@Column(nullable = false)
-	private Long version;
+    // ++ Optimistic Lock
+    @Version
+    @Column(nullable = false)
+    var version: Long? = null,
+) : BaseEntity() {
 
-	public void edit(String newContent) {
-		this.content = newContent;
-	}
+    fun edit(newContent: String) {
+        this.content = newContent
+    }
 
-	public void softDelete() {
-		this.deletedAt = LocalDateTime.now();
-	}
+    fun softDelete() {
+        this.deletedAt = LocalDateTime.now()
+    }
 
-	public boolean isDeleted() {
-		return deletedAt != null;
-	}
+    val isDeleted: Boolean
+        get() = deletedAt != null
 
-	public void restore() {
-		this.deletedAt = null;
-	}
+    fun restore() {
+        this.deletedAt = null
+    }
 
-	//  ++ Like
-	public void incrementLikeCount() {
-		this.likeCount++;
-	}
+    // ++ Like
+    fun incrementLikeCount() {
+        this.likeCount++
+    }
 
-	public void decrementLikeCount() {
-		if (this.likeCount > 0) {
-			this.likeCount--;
-		}
-	}
+    fun decrementLikeCount() {
+        if (this.likeCount > 0) {
+            this.likeCount--
+        }
+    }
 }

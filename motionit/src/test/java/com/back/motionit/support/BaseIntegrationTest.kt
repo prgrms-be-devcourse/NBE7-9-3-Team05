@@ -11,8 +11,5 @@ class BaseIntegrationTest {
     var awsCdnSignService: AwsCdnSignService? = null
 
     @MockitoBean
-    var awsS3Service: AwsS3Service? = null
-
-    @MockitoBean
     var openAiService: OpenAiService? = null
 }

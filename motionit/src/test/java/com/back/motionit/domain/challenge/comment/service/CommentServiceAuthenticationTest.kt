@@ -1,278 +1,424 @@
-package com.back.motionit.domain.challenge.comment.service;
+package com.back.motionit.domain.challenge.comment.service
 
-import static org.assertj.core.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import com.back.motionit.domain.challenge.comment.dto.CommentCreateReq
+import com.back.motionit.domain.challenge.comment.dto.CommentEditReq
+import com.back.motionit.domain.challenge.comment.dto.CommentRes
+import com.back.motionit.domain.challenge.comment.entity.Comment
+import com.back.motionit.domain.challenge.comment.moderation.CommentModeration
+import com.back.motionit.domain.challenge.comment.repository.CommentRepository
+import com.back.motionit.domain.challenge.like.repository.CommentLikeRepository
+import com.back.motionit.domain.challenge.like.service.CommentLikeService
+import com.back.motionit.domain.challenge.participant.entity.ChallengeParticipant
+import com.back.motionit.domain.challenge.room.entity.ChallengeRoom
+import com.back.motionit.domain.challenge.room.repository.ChallengeRoomRepository
+import com.back.motionit.domain.challenge.validator.ChallengeAuthValidator
+import com.back.motionit.domain.user.entity.User
+import com.back.motionit.domain.user.repository.UserRepository
+import com.back.motionit.global.error.code.CommentErrorCode
+import com.back.motionit.global.error.code.ErrorCode
+import com.back.motionit.global.error.exception.BusinessException
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
+import org.junit.jupiter.api.function.Executable
+import org.mockito.InjectMocks
+import org.mockito.Mock
+import org.mockito.Mockito
+import org.mockito.junit.jupiter.MockitoExtension
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Pageable
+import org.springframework.test.util.ReflectionTestUtils
+import java.time.LocalDateTime
+import java.util.*
 
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.test.util.ReflectionTestUtils;
-
-import com.back.motionit.domain.challenge.comment.dto.CommentCreateReq;
-import com.back.motionit.domain.challenge.comment.dto.CommentEditReq;
-import com.back.motionit.domain.challenge.comment.dto.CommentRes;
-import com.back.motionit.domain.challenge.comment.entity.Comment;
-import com.back.motionit.domain.challenge.comment.moderation.CommentModeration;
-import com.back.motionit.domain.challenge.comment.repository.CommentRepository;
-import com.back.motionit.domain.challenge.like.repository.CommentLikeRepository;
-import com.back.motionit.domain.challenge.room.entity.ChallengeRoom;
-import com.back.motionit.domain.challenge.room.repository.ChallengeRoomRepository;
-import com.back.motionit.domain.challenge.validator.ChallengeAuthValidator;
-import com.back.motionit.domain.user.entity.User;
-import com.back.motionit.domain.user.repository.UserRepository;
-import com.back.motionit.global.error.code.CommentErrorCode;
-import com.back.motionit.global.error.exception.BusinessException;
-
-@ExtendWith(MockitoExtension.class)
+@ExtendWith(MockitoExtension::class)
 class CommentServiceAuthenticationTest {
 
-	@Mock
-	private CommentRepository commentRepository;
-	@Mock
-	private ChallengeRoomRepository challengeRoomRepository;
-	@Mock
-	private UserRepository userRepository;
-	@Mock
-	private CommentLikeRepository commentLikeRepository;
-	@Mock
-	private CommentModeration commentModeration;
-	@Mock
-	private ChallengeAuthValidator challengeAuthValidator;
+    @Mock
+    lateinit var commentRepository: CommentRepository
 
-	@InjectMocks
-	private CommentService commentService;
+    @Mock
+    lateinit var challengeRoomRepository: ChallengeRoomRepository
 
-	private static final Long ROOM_ID = 10L;
-	private static final Long USER_ID = 101L;
-	private static final Long OTHER_USER_ID = 202L;
-	private static final Long COMMENT_ID = 1000L;
+    @Mock
+    lateinit var userRepository: UserRepository
 
-	// 테스트 전역에서 사용할 mock/fixture
-	private ChallengeRoom mockRoom;
-	private User author;
-	private User otherUser;
+    @Mock
+    lateinit var commentLikeRepository: CommentLikeRepository
 
-	@BeforeEach
-	void setUp() {
-		mockRoom = mock(ChallengeRoom.class);
-		author = new User(USER_ID, "alice");
-		otherUser = new User(OTHER_USER_ID, "bob");
+    @Mock
+    lateinit var commentLikeService: CommentLikeService   // ✅ 새로 추가된 서비스 모킹
 
-		// (B) 필요 테스트에서 호출되지 않아도 불필요 stubbing 예외가 나지 않도록 lenient 사용
-		lenient().when(mockRoom.getId()).thenReturn(ROOM_ID);
-	}
+    @Mock
+    lateinit var commentModeration: CommentModeration
 
-	// (A) Comment 엔티티 id 주입 유틸 (Reflection)
-	private Comment buildActiveComment(Long id, ChallengeRoom room, User user, String content) {
-		Comment comment = Comment.builder()
-			.challengeRoom(room)
-			.user(user)
-			.content(content)
-			.build();
-		ReflectionTestUtils.setField(comment, "id", id); // ★ A: id 강제 주입
-		return comment;
-	}
+    @Mock
+    lateinit var challengeAuthValidator: ChallengeAuthValidator
 
-	@Nested
-	@DisplayName("create()")
-	class CreateTests {
+    @InjectMocks
+    lateinit var commentService: CommentService
 
-		@Test
-		@DisplayName("방 존재 + 멤버십 OK → 댓글 생성 성공")
-		void create_success() {
-			// guard: 방 존재
-			when(challengeRoomRepository.existsById(ROOM_ID)).thenReturn(true);
-			// 방, 사용자 조회
-			when(challengeRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(mockRoom));
-			when(userRepository.findById(USER_ID)).thenReturn(Optional.of(author));
-			// 멤버십 통과(반환값은 사용하지 않으므로 아무 Participant mock이면 됨)
-			when(challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID)).thenReturn(null);
-			// 모더레이션 통과
-			doNothing().when(commentModeration).assertClean("hello");
+    // 테스트 전역에서 사용할 mock/fixture
+    private lateinit var mockRoom: ChallengeRoom
+    private lateinit var author: User
+    private lateinit var otherUser: User
 
-			// save 시 id 부여 (선택)
-			doAnswer(inv -> {
-				Comment saved = inv.getArgument(0);
-				if (saved != null) {
-					ReflectionTestUtils.setField(saved, "id", 777L);
-				}
-				return null;
-			}).when(commentRepository).save(any(Comment.class));
+    @BeforeEach
+    fun setUp() {
+        mockRoom = Mockito.mock(ChallengeRoom::class.java)
+        author = User(USER_ID, "alice")
+        otherUser = User(OTHER_USER_ID, "bob")
 
-			CommentRes res = commentService.create(ROOM_ID, USER_ID, new CommentCreateReq("hello"));
+        // 필요 테스트에서 호출되지 않아도 불필요 stubbing 예외가 나지 않도록 lenient 사용
+        Mockito.lenient()
+            .`when`(mockRoom.id)
+            .thenReturn(ROOM_ID)
+    }
 
-			assertThat(res).isNotNull();
-			assertThat(res.roomId()).isEqualTo(ROOM_ID);
-			assertThat(res.authorId()).isEqualTo(USER_ID);
-			verify(commentRepository, times(1)).save(any(Comment.class));
-			verify(commentModeration, times(1)).assertClean("hello");
-			verify(challengeAuthValidator, times(1)).validateActiveParticipant(USER_ID, ROOM_ID);
-		}
+    // Comment 엔티티 id + 날짜 주입 유틸 (Reflection)
+    private fun buildActiveComment(
+        id: Long,
+        room: ChallengeRoom,
+        user: User,
+        content: String,
+    ): Comment {
+        val comment = Comment(
+            deletedAt = null,
+            challengeRoom = room,
+            user = user,
+            content = content,
+            likeCount = 0,
+            version = null,
+        )
 
-		@Test
-		@DisplayName("방 없음 → ROOM_NOT_FOUND")
-		void create_roomNotFound() {
-			when(challengeRoomRepository.existsById(ROOM_ID)).thenReturn(false);
+        val now = LocalDateTime.now()
+        ReflectionTestUtils.setField(comment, "id", id)
+        ReflectionTestUtils.setField(comment, "createDate", now)
+        ReflectionTestUtils.setField(comment, "modifyDate", now)
 
-			BusinessException ex = assertThrows(
-				BusinessException.class,
-				() -> commentService.create(ROOM_ID, USER_ID, new CommentCreateReq("hi"))
-			);
-			assertThat(ex.getErrorCode()).isEqualTo(CommentErrorCode.ROOM_NOT_FOUND);
+        return comment
+    }
 
-			verify(challengeRoomRepository, times(1)).existsById(ROOM_ID);
-			verifyNoMoreInteractions(commentRepository, challengeAuthValidator, commentModeration);
-		}
-	}
+    @Nested
+    @DisplayName("create()")
+    inner class CreateTests {
 
-	@Nested
-	@DisplayName("list()")
-	class ListTests {
+        @Test
+        @DisplayName("방 존재 + 멤버십 OK → 댓글 생성 성공")
+        fun create_success() {
+            // guard: 방 존재
+            Mockito.`when`(challengeRoomRepository.existsById(ROOM_ID))
+                .thenReturn(true)
 
-		@Test
-		@DisplayName("활성 댓글 없음 → 빈 페이지")
-		void list_empty() {
-			when(challengeRoomRepository.existsById(ROOM_ID)).thenReturn(true);
-			when(challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID)).thenReturn(null);
-			when(userRepository.findById(USER_ID)).thenReturn(Optional.of(author));
+            // 방, 사용자 조회
+            Mockito.`when`(challengeRoomRepository.findById(ROOM_ID))
+                .thenReturn(Optional.of(mockRoom))
 
-			Pageable pageable = PageRequest.of(0, 20);
-			when(commentRepository.findActiveByRoomIdWithAuthor(eq(ROOM_ID), any(Pageable.class)))
-				.thenReturn(Page.empty(pageable));
+            Mockito.`when`(userRepository.findById(USER_ID))
+                .thenReturn(Optional.of(author))
 
-			Page<CommentRes> page = commentService.list(ROOM_ID, USER_ID, 0, 20);
+            // 멤버십 통과 (반환값은 사용하지 않으므로 아무 Participant mock이면 됨)
+            Mockito.`when`(
+                challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID)
+            ).thenReturn(Mockito.mock(ChallengeParticipant::class.java))
 
-			assertThat(page.getTotalElements()).isZero();
-			verify(commentLikeRepository, never()).findLikedCommentIdsSafely(any(), anyList());
-		}
+            // 모더레이션 통과
+            Mockito.doNothing()
+                .`when`(commentModeration)
+                .assertClean("hello")
 
-		@Test
-		@DisplayName("활성 댓글 + 좋아요 반영")
-		void list_withLikes() {
-			when(challengeRoomRepository.existsById(ROOM_ID)).thenReturn(true);
-			when(challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID)).thenReturn(null);
-			when(userRepository.findById(USER_ID)).thenReturn(Optional.of(author));
+            // save 시 id + 날짜 부여
+            Mockito.`when`(commentRepository.save(Mockito.any(Comment::class.java))).thenAnswer { inv ->
+                val saved = inv.getArgument<Comment>(0)
+                val now = LocalDateTime.now()
+                ReflectionTestUtils.setField(saved, "id", 777L)
+                ReflectionTestUtils.setField(saved, "createDate", now)
+                ReflectionTestUtils.setField(saved, "modifyDate", now)
+                saved
+            }
 
-			Comment c1 = buildActiveComment(COMMENT_ID, mockRoom, author, "c1");
-			Comment c2 = buildActiveComment(COMMENT_ID + 1, mockRoom, author, "c2");
+            val res = commentService.create(ROOM_ID, USER_ID, CommentCreateReq("hello"))
 
-			Pageable pageable = PageRequest.of(0, 20);
-			when(commentRepository.findActiveByRoomIdWithAuthor(eq(ROOM_ID), any(Pageable.class)))
-				.thenReturn(new PageImpl<>(List.of(c1, c2), pageable, 2));
+            assertThat(res).isNotNull()
+            assertThat(res.roomId).isEqualTo(ROOM_ID)
+            assertThat(res.authorId).isEqualTo(USER_ID)
 
-			// (C) 실제 호출 인자와 정확히 일치하도록 스텁
-			when(commentLikeRepository.findLikedCommentIdsSafely(
-				eq(author),
-				eq(List.of(COMMENT_ID, COMMENT_ID + 1))
-			)).thenReturn(Set.of(COMMENT_ID));
+            Mockito.verify(commentRepository, Mockito.times(1))
+                .save(Mockito.any(Comment::class.java))
+            Mockito.verify(commentModeration, Mockito.times(1))
+                .assertClean("hello")
+            Mockito.verify(challengeAuthValidator, Mockito.times(1))
+                .validateActiveParticipant(USER_ID, ROOM_ID)
+        }
 
-			Page<CommentRes> page = commentService.list(ROOM_ID, USER_ID, 0, 20);
+        @Test
+        @DisplayName("방 없음 → ROOM_NOT_FOUND")
+        fun create_roomNotFound() {
+            Mockito.`when`(challengeRoomRepository.existsById(ROOM_ID))
+                .thenReturn(false)
 
-			assertThat(page.getTotalElements()).isEqualTo(2);
-			verify(commentLikeRepository, times(1))
-				.findLikedCommentIdsSafely(eq(author), eq(List.of(COMMENT_ID, COMMENT_ID + 1)));
-		}
-	}
+            val ex = org.junit.jupiter.api.Assertions.assertThrows(
+                BusinessException::class.java,
+                Executable {
+                    commentService.create(ROOM_ID, USER_ID, CommentCreateReq("hi"))
+                }
+            )
 
-	@Nested
-	@DisplayName("edit()")
-	class EditTests {
+            assertThat<ErrorCode>(ex.errorCode)
+                .isEqualTo(CommentErrorCode.ROOM_NOT_FOUND)
 
-		@Test
-		@DisplayName("작성자 아님 → WRONG_ACCESS")
-		void edit_wrongAccess() {
-			when(challengeRoomRepository.existsById(ROOM_ID)).thenReturn(true);
-			when(challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID)).thenReturn(null);
+            Mockito.verify(challengeRoomRepository, Mockito.times(1))
+                .existsById(ROOM_ID)
+            Mockito.verifyNoMoreInteractions(
+                commentRepository,
+                challengeAuthValidator,
+                commentModeration
+            )
+        }
+    }
 
-			Comment othersComment = buildActiveComment(COMMENT_ID, mockRoom, otherUser, "old");
-			when(commentRepository.findByIdAndChallengeRoom_IdAndDeletedAtIsNull(COMMENT_ID, ROOM_ID))
-				.thenReturn(Optional.of(othersComment));
+    @Nested
+    @DisplayName("list()")
+    inner class ListTests {
 
-			BusinessException ex = assertThrows(
-				BusinessException.class,
-				() -> commentService.edit(ROOM_ID, COMMENT_ID, USER_ID, new CommentEditReq("new"))
-			);
-			assertThat(ex.getErrorCode()).isEqualTo(CommentErrorCode.WRONG_ACCESS);
-			verify(commentModeration, never()).assertClean(anyString());
-		}
+        @Test
+        @DisplayName("활성 댓글 없음 → 빈 페이지")
+        fun list_empty() {
+            Mockito.`when`(challengeRoomRepository.existsById(ROOM_ID))
+                .thenReturn(true)
 
-		@Test
-		@DisplayName("성공 → 내용 변경 및 좋아요 여부 포함")
-		void edit_success() {
-			when(challengeRoomRepository.existsById(ROOM_ID)).thenReturn(true);
-			when(challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID)).thenReturn(null);
+            Mockito.`when`(
+                challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID)
+            ).thenReturn(Mockito.mock(ChallengeParticipant::class.java))
 
-			Comment own = buildActiveComment(COMMENT_ID, mockRoom, author, "old");
-			when(commentRepository.findByIdAndChallengeRoom_IdAndDeletedAtIsNull(COMMENT_ID, ROOM_ID))
-				.thenReturn(Optional.of(own));
+            Mockito.`when`(userRepository.findById(USER_ID))
+                .thenReturn(Optional.of(author))
 
-			doNothing().when(commentModeration).assertClean("new");
+            val pageable: Pageable = PageRequest.of(0, 20)
 
-			when(userRepository.getReferenceById(USER_ID)).thenReturn(author);
-			when(commentLikeRepository.existsByCommentAndUser(own, author)).thenReturn(true);
+            Mockito.`when`(
+                commentRepository.findActiveByRoomIdWithAuthor(
+                    ROOM_ID,
+                    pageable
+                )
+            ).thenReturn(Page.empty(pageable))
 
-			CommentRes res = commentService.edit(ROOM_ID, COMMENT_ID, USER_ID, new CommentEditReq("new"));
+            val page: Page<CommentRes> = commentService.list(ROOM_ID, USER_ID, 0, 20)
 
-			assertThat(res).isNotNull();
-			// CommentRes.from(c, isLiked)가 삭제 여부에 따라 content를 가공할 수 있으니,
-			// 여기선 모더레이션과 like-check 호출만 검증
-			verify(commentModeration, times(1)).assertClean("new");
-			verify(commentLikeRepository, times(1)).existsByCommentAndUser(own, author);
-		}
-	}
+            assertThat(page.totalElements).isZero()
+            // 좋아요 조회는 아예 호출되지 않아야 함 → 이제 Service 기준
+            Mockito.verifyNoInteractions(commentLikeService)
+        }
 
-	@Nested
-	@DisplayName("delete()")
-	class DeleteTests {
+        @Test
+        @DisplayName("활성 댓글 + 좋아요 반영")
+        fun list_withLikes() {
+            Mockito.`when`(challengeRoomRepository.existsById(ROOM_ID))
+                .thenReturn(true)
 
-		@Test
-		@DisplayName("성공 → soft delete 및 좋아요 삭제 호출")
-		void delete_success() {
-			when(challengeRoomRepository.existsById(ROOM_ID)).thenReturn(true);
-			when(challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID)).thenReturn(null);
+            Mockito.`when`(
+                challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID)
+            ).thenReturn(Mockito.mock(ChallengeParticipant::class.java))
 
-			Comment own = buildActiveComment(COMMENT_ID, mockRoom, author, "bye");
-			when(commentRepository.findByIdAndChallengeRoom_IdAndDeletedAtIsNull(COMMENT_ID, ROOM_ID))
-				.thenReturn(Optional.of(own));
+            Mockito.`when`(userRepository.findById(USER_ID))
+                .thenReturn(Optional.of(author))
 
-			doNothing().when(commentLikeRepository).deleteAllByComment(own);
+            val c1 = buildActiveComment(COMMENT_ID, mockRoom, author, "c1")
+            val c2 = buildActiveComment(COMMENT_ID + 1, mockRoom, author, "c2")
 
-			CommentRes res = commentService.delete(ROOM_ID, COMMENT_ID, USER_ID);
+            val pageable: Pageable = PageRequest.of(0, 20)
 
-			assertThat(res).isNotNull();
-			verify(commentLikeRepository, times(1)).deleteAllByComment(own);
-		}
+            Mockito.`when`(
+                commentRepository.findActiveByRoomIdWithAuthor(
+                    ROOM_ID,
+                    pageable
+                )
+            ).thenReturn(PageImpl(listOf(c1, c2), pageable, 2))
 
-		@Test
-		@DisplayName("댓글 없음 → COMMENT_NOT_FOUND")
-		void delete_commentNotFound() {
-			when(challengeRoomRepository.existsById(ROOM_ID)).thenReturn(true);
-			when(challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID)).thenReturn(null);
+            val expectedIds = listOf(COMMENT_ID, COMMENT_ID + 1)
 
-			when(commentRepository.findByIdAndChallengeRoom_IdAndDeletedAtIsNull(COMMENT_ID, ROOM_ID))
-				.thenReturn(Optional.empty());
+            // (C) 실제 호출 인자와 정확히 일치하도록 스텁 → 이제 CommentLikeService 기준
+            Mockito.`when`(
+                commentLikeService.findLikedCommentIdsSafely(
+                    author,
+                    expectedIds
+                )
+            ).thenReturn(setOf(COMMENT_ID))
 
-			BusinessException ex = assertThrows(
-				BusinessException.class,
-				() -> commentService.delete(ROOM_ID, COMMENT_ID, USER_ID)
-			);
-			assertThat(ex.getErrorCode()).isEqualTo(CommentErrorCode.COMMENT_NOT_FOUND);
-			verify(commentLikeRepository, never()).deleteAllByComment(any());
-		}
-	}
+            val page: Page<CommentRes> = commentService.list(ROOM_ID, USER_ID, 0, 20)
+
+            assertThat(page.totalElements).isEqualTo(2)
+
+            Mockito.verify(commentLikeService, Mockito.times(1))
+                .findLikedCommentIdsSafely(author, expectedIds)
+
+            // 선택: liked 플래그까지 검증
+            assertThat(page.content[0].liked).isTrue()
+            assertThat(page.content[1].liked).isFalse()
+        }
+    }
+
+    @Nested
+    @DisplayName("edit()")
+    inner class EditTests {
+
+        @Test
+        @DisplayName("작성자 아님 → WRONG_ACCESS")
+        fun edit_wrongAccess() {
+            Mockito.`when`(challengeRoomRepository.existsById(ROOM_ID))
+                .thenReturn(true)
+
+            Mockito.`when`(
+                challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID)
+            ).thenReturn(Mockito.mock(ChallengeParticipant::class.java))
+
+            val othersComment = buildActiveComment(COMMENT_ID, mockRoom, otherUser, "old")
+
+            Mockito.`when`(
+                commentRepository.findByIdAndChallengeRoom_IdAndDeletedAtIsNull(
+                    COMMENT_ID,
+                    ROOM_ID
+                )
+            ).thenReturn(Optional.of(othersComment))
+
+            val ex = org.junit.jupiter.api.Assertions.assertThrows(
+                BusinessException::class.java,
+                Executable {
+                    commentService.edit(
+                        ROOM_ID,
+                        COMMENT_ID,
+                        USER_ID,
+                        CommentEditReq("new")
+                    )
+                }
+            )
+
+            assertThat<ErrorCode>(ex.errorCode)
+                .isEqualTo(CommentErrorCode.WRONG_ACCESS)
+
+            // 모더레이션은 호출되지 않아야 함
+            Mockito.verifyNoInteractions(commentModeration)
+        }
+
+        @Test
+        @DisplayName("성공 → 내용 변경 및 좋아요 여부 포함")
+        fun edit_success() {
+            Mockito.`when`(challengeRoomRepository.existsById(ROOM_ID))
+                .thenReturn(true)
+
+            Mockito.`when`(
+                challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID)
+            ).thenReturn(Mockito.mock(ChallengeParticipant::class.java))
+
+            val own = buildActiveComment(COMMENT_ID, mockRoom, author, "old")
+
+            Mockito.`when`(
+                commentRepository.findByIdAndChallengeRoom_IdAndDeletedAtIsNull(
+                    COMMENT_ID,
+                    ROOM_ID
+                )
+            ).thenReturn(Optional.of(own))
+
+            Mockito.doNothing()
+                .`when`(commentModeration)
+                .assertClean("new")
+
+            Mockito.`when`(userRepository.getReferenceById(USER_ID))
+                .thenReturn(author)
+
+            Mockito.`when`(commentLikeRepository.existsByCommentAndUser(own, author))
+                .thenReturn(true)
+
+            val res = commentService.edit(
+                ROOM_ID,
+                COMMENT_ID,
+                USER_ID,
+                CommentEditReq("new")
+            )
+
+            assertThat(res).isNotNull
+            Mockito.verify(commentModeration, Mockito.times(1))
+                .assertClean("new")
+            Mockito.verify(commentLikeRepository, Mockito.times(1))
+                .existsByCommentAndUser(own, author)
+        }
+    }
+
+    @Nested
+    @DisplayName("delete()")
+    inner class DeleteTests {
+
+        @Test
+        @DisplayName("성공 → soft delete 및 좋아요 삭제 호출")
+        fun delete_success() {
+            Mockito.`when`(challengeRoomRepository.existsById(ROOM_ID))
+                .thenReturn(true)
+
+            Mockito.`when`(
+                challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID)
+            ).thenReturn(Mockito.mock(ChallengeParticipant::class.java))
+
+            val own = buildActiveComment(COMMENT_ID, mockRoom, author, "bye")
+
+            Mockito.`when`(
+                commentRepository.findByIdAndChallengeRoom_IdAndDeletedAtIsNull(
+                    COMMENT_ID,
+                    ROOM_ID
+                )
+            ).thenReturn(Optional.of(own))
+
+            Mockito.doNothing()
+                .`when`(commentLikeRepository)
+                .deleteAllByComment(own)
+
+            val res = commentService.delete(ROOM_ID, COMMENT_ID, USER_ID)
+
+            assertThat(res).isNotNull
+            Mockito.verify(commentLikeRepository, Mockito.times(1))
+                .deleteAllByComment(own)
+        }
+
+        @Test
+        @DisplayName("댓글 없음 → COMMENT_NOT_FOUND")
+        fun delete_commentNotFound() {
+            Mockito.`when`(challengeRoomRepository.existsById(ROOM_ID))
+                .thenReturn(true)
+
+            Mockito.`when`(
+                challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID)
+            ).thenReturn(Mockito.mock(ChallengeParticipant::class.java))
+
+            Mockito.`when`(
+                commentRepository.findByIdAndChallengeRoom_IdAndDeletedAtIsNull(
+                    COMMENT_ID,
+                    ROOM_ID
+                )
+            ).thenReturn(Optional.empty())
+
+            val ex = org.junit.jupiter.api.Assertions.assertThrows(
+                BusinessException::class.java,
+                Executable {
+                    commentService.delete(ROOM_ID, COMMENT_ID, USER_ID)
+                }
+            )
+
+            assertThat<ErrorCode>(ex.errorCode)
+                .isEqualTo(CommentErrorCode.COMMENT_NOT_FOUND)
+
+            // 좋아요 삭제는 호출되면 안 됨
+            Mockito.verifyNoInteractions(commentLikeRepository)
+        }
+    }
+
+    companion object {
+        private const val ROOM_ID = 10L
+        private const val USER_ID = 101L
+        private const val OTHER_USER_ID = 202L
+        private const val COMMENT_ID = 1000L
+    }
 }

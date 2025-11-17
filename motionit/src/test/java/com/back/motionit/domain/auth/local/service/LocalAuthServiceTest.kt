@@ -1,142 +1,142 @@
-package com.back.motionit.domain.auth.local.service;
+package com.back.motionit.domain.auth.local.service
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.BDDMockito.*;
+import com.back.motionit.domain.auth.dto.LoginRequest
+import com.back.motionit.domain.auth.dto.SignupRequest
+import com.back.motionit.domain.auth.service.AuthTokenService
+import com.back.motionit.domain.user.entity.LoginType
+import com.back.motionit.domain.user.entity.User
+import com.back.motionit.domain.user.repository.UserRepository
+import com.back.motionit.global.error.code.AuthErrorCode
+import com.back.motionit.global.error.exception.BusinessException
+import com.back.motionit.global.request.RequestContext
+import com.back.motionit.security.jwt.JwtTokenDto
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
+import org.mockito.ArgumentMatchers
+import org.mockito.ArgumentMatchers.anyString
+import org.mockito.BDDMockito.given
+import org.mockito.InjectMocks
+import org.mockito.Mock
+import org.mockito.Mockito.verify
+import org.mockito.junit.jupiter.MockitoExtension
+import org.mockito.kotlin.any
+import org.springframework.security.crypto.password.PasswordEncoder
+import java.util.*
 
-import java.util.Optional;
-
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.crypto.password.PasswordEncoder;
-
-import com.back.motionit.domain.auth.dto.AuthResponse;
-import com.back.motionit.domain.auth.dto.LoginRequest;
-import com.back.motionit.domain.auth.dto.SignupRequest;
-import com.back.motionit.domain.auth.service.AuthTokenService;
-import com.back.motionit.domain.user.entity.LoginType;
-import com.back.motionit.domain.user.entity.User;
-import com.back.motionit.domain.user.repository.UserRepository;
-import com.back.motionit.global.error.code.AuthErrorCode;
-import com.back.motionit.global.error.exception.BusinessException;
-import com.back.motionit.global.request.RequestContext;
-import com.back.motionit.security.jwt.JwtTokenDto;
-
-@ExtendWith(MockitoExtension.class)
+@ExtendWith(MockitoExtension::class)
 @DisplayName("LocalAuthService 단위 테스트")
-public class LocalAuthServiceTest {
+class LocalAuthServiceTest {
+    @InjectMocks
+    private lateinit var localAuthService: LocalAuthService
 
-	@InjectMocks
-	private LocalAuthService localAuthService;
+    @Mock
+    private lateinit var userRepository: UserRepository
 
-	@Mock
-	private UserRepository userRepository;
+    @Mock
+    private lateinit var passwordEncoder: PasswordEncoder
 
-	@Mock
-	private PasswordEncoder passwordEncoder;
+    @Mock
+    private lateinit var authTokenService: AuthTokenService
 
-	@Mock
-	private AuthTokenService authTokenService;
+    @Mock
+    private lateinit var requestContext: RequestContext
 
-	@Mock
-	private RequestContext requestContext;
+    @Test
+    @DisplayName("회원가입 성공 시 AuthResponse 반환")
+    fun signup_Success() {
 
-	@Test
-	@DisplayName("회원가입 성공 시 AuthResponse 반환")
-	void signup_Success() {
-		// given
-		SignupRequest request = new SignupRequest("test@email.com", "password123", "테스터");
+        val request = SignupRequest("test@email.com", "password123", "테스터")
 
-		given(userRepository.existsByEmail(anyString())).willReturn(false);
-		given(userRepository.existsByNickname(anyString())).willReturn(false);
-		given(passwordEncoder.encode(anyString())).willReturn("encodedPassword");
+        given(userRepository.existsByEmail(anyString())).willReturn(false)
+        given(userRepository.existsByNickname(anyString())).willReturn(false)
+        given(passwordEncoder.encode(anyString())).willReturn("encodedPassword")
 
-		User mockUser = createMockUser();
+        val mockUser = createMockUser()
 
-		given(userRepository.save(any(User.class))).willReturn(mockUser);
+        given(userRepository.save(any())).willReturn(mockUser)
 
-		JwtTokenDto tokens = new JwtTokenDto("Bearer", "access.token", "refresh.token", 3600L);
-		given(authTokenService.generateTokens(any(User.class))).willReturn(tokens);
+        val tokens = JwtTokenDto("Bearer", "access.token", "refresh.token", 3600L)
+        given(authTokenService.generateTokens(any())).willReturn(tokens)
 
-		// when
-		AuthResponse result = localAuthService.signup(request);
+        val result = localAuthService.signup(request)
 
-		// then
-		assertNotNull(result);
-		assertEquals("access.token", result.getAccessToken());
-		assertEquals("refresh.token", result.getRefreshToken());
-		assertEquals("테스터", result.getNickname());
-	}
+        assertNotNull(result)
+        assertEquals("access.token", result.accessToken)
+        assertEquals("refresh.token", result.refreshToken)
+        assertEquals("테스터", result.nickname)
+    }
 
-	@Test
-	@DisplayName("이미 존재하는 이메일이면 EMAIL_DUPLICATED 예외 발생")
-	void signup_DuplicateEmail() {
-		SignupRequest request = new SignupRequest("dup@email.com", "pw123", "닉네임");
-		given(userRepository.existsByEmail(anyString())).willReturn(true);
+    @Test
+    @DisplayName("이미 존재하는 이메일이면 EMAIL_DUPLICATED 예외 발생")
+    fun signup_DuplicateEmail() {
+        val request = SignupRequest("dup@email.com", "pw123", "닉네임")
+        given(userRepository.existsByEmail(anyString())).willReturn(true)
 
-		BusinessException ex = assertThrows(BusinessException.class,
-			() -> localAuthService.signup(request));
+        val ex = assertThrows(
+            BusinessException::class.java
+        ) { localAuthService.signup(request) }
 
-		assertEquals(AuthErrorCode.EMAIL_DUPLICATED, ex.getErrorCode());
-	}
+        assertEquals(AuthErrorCode.EMAIL_DUPLICATED, ex.errorCode)
+    }
 
-	@Test
-	@DisplayName("로그인 성공 시 쿠키 설정 및 AuthResponse 반환")
-	void login_Success() {
-		LoginRequest request = new LoginRequest("test@email.com", "password123");
+    @Test
+    @DisplayName("로그인 성공 시 쿠키 설정 및 AuthResponse 반환")
+    fun login_Success() {
+        val request = LoginRequest("test@email.com", "password123")
 
-		User mockUser = createMockUser();
+        val mockUser = createMockUser()
 
-		given(userRepository.findByEmail(request.getEmail())).willReturn(Optional.of(mockUser));
-		given(passwordEncoder.matches(anyString(), anyString())).willReturn(true);
+        given(userRepository.findByEmail(request.email)).willReturn(Optional.of(mockUser))
+        given(passwordEncoder.matches(anyString(), anyString()))
+            .willReturn(true)
 
-		JwtTokenDto tokens = new JwtTokenDto("Bearer", "access.token", "refresh.token", 3600L);
-		given(authTokenService.generateTokens(mockUser)).willReturn(tokens);
+        val tokens = JwtTokenDto("Bearer", "access.token", "refresh.token", 3600L)
+        given(authTokenService.generateTokens(mockUser)).willReturn(tokens)
 
-		AuthResponse result = localAuthService.login(request);
+        val result = localAuthService.login(request)
 
-		assertEquals("테스터", result.getNickname());
-		verify(requestContext).setCookie("accessToken", "access.token");
-		verify(requestContext).setCookie("refreshToken", "refresh.token");
-	}
+        assertEquals("테스터", result.nickname)
+        verify(requestContext).setCookie("accessToken", "access.token")
+        verify(requestContext).setCookie("refreshToken", "refresh.token")
+    }
 
-	@Test
-	@DisplayName("로그아웃 성공 시 쿠키 삭제 및 refreshToken 제거")
-	void logout_Success() {
-		String refreshToken = "valid.refresh.token";
-		User user = new User(1L, "테스터");
-		user.updateRefreshToken(refreshToken);
+    @Test
+    @DisplayName("로그아웃 성공 시 쿠키 삭제 및 refreshToken 제거")
+    fun logout_Success() {
+        val refreshToken = "valid.refresh.token"
+        val user = User(1L, "테스터")
+        user.updateRefreshToken(refreshToken)
 
-		given(requestContext.getCookieValue(eq("refreshToken"), any())).willReturn(refreshToken);
-		given(userRepository.findByRefreshToken(refreshToken)).willReturn(Optional.of(user));
+        given(requestContext.getCookieValue(ArgumentMatchers.eq("refreshToken"), ArgumentMatchers.any()))
+            .willReturn(refreshToken)
+        given(userRepository.findByRefreshToken(refreshToken)).willReturn(Optional.of(user))
 
-		localAuthService.logout();
+        localAuthService.logout()
 
-		verify(authTokenService).removeRefreshToken(user.getId());
-		verify(requestContext).deleteCookie("accessToken");
-		verify(requestContext).deleteCookie("refreshToken");
-	}
+        verify(authTokenService).removeRefreshToken(user.id!!)
+        verify(requestContext).deleteCookie("accessToken")
+        verify(requestContext).deleteCookie("refreshToken")
+    }
 
-	@Test
-	@DisplayName("refreshToken 쿠키가 없으면 예외 발생")
-	void logout_NoRefreshToken() {
-		given(requestContext.getCookieValue(eq("refreshToken"), any())).willReturn(null);
+    @Test
+    @DisplayName("refreshToken 쿠키가 없으면 예외 발생")
+    fun logout_NoRefreshToken() {
+        given(requestContext.getCookieValue(ArgumentMatchers.eq("refreshToken"), ArgumentMatchers.any()))
+            .willReturn(null)
 
-		BusinessException ex = assertThrows(BusinessException.class, () -> localAuthService.logout());
-		assertEquals(AuthErrorCode.REFRESH_TOKEN_REQUIRED, ex.getErrorCode());
-	}
+        val ex = assertThrows(BusinessException::class.java) { localAuthService.logout() }
+        assertEquals(AuthErrorCode.REFRESH_TOKEN_REQUIRED, ex.errorCode)
+    }
 
-	// Helper
-	private User createMockUser() {
-		User user = new User(1L, "테스터");
-		user.setEmail("test@email.com");
-		user.setPassword("encodedPassword");
-		user.setLoginType(LoginType.LOCAL);
-		user.setUserProfile("default.png");
-		return user;
-	}
+    // Helper
+    private fun createMockUser(): User {
+        val user = User(1L, "테스터")
+        user.email = "test@email.com"
+        user.password = "encodedPassword"
+        user.loginType = LoginType.LOCAL
+        user.userProfile = "default.png"
+        return user
+    }
 }

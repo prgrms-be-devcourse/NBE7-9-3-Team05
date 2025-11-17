@@ -19,24 +19,18 @@ echo -e "${BLUE}=================================${NC}"
 echo -e "${BLUE}  Blue-Green Deployment${NC}"
 echo -e "${BLUE}=================================${NC}"
 
-echo -e "\n${YELLOW}[Pre-check] Verifying requirements...${NC}"
-if ! command -v docker &> /dev/null; then
-    echo -e "${RED}✗ Docker is not installed${NC}"
-    exit 1
+echo -e "\n${YELLOW}[0/7] Checking Docker network...${NC}"
+if ! docker network ls | grep -q "motionit-network"; then
+    docker network create motionit-network
+    echo -e "${GREEN}Docker network created${NC}"
+else
+    echo -e "${GREEN}Docker network exists${NC}"
 fi
 
-if ! docker ps &> /dev/null; then
-    echo -e "${RED}✗ Docker permission denied. User may not be in docker group.${NC}"
-    echo -e "${YELLOW}  Try: sudo usermod -aG docker \$USER && newgrp docker${NC}"
-    exit 1
+if ! docker network inspect motionit-network | grep -q "motionit-mysql"; then
+    docker network connect motionit-network motionit-mysql || true
+    echo -e "${GREEN}MySQL connected to network${NC}"
 fi
-
-if ! command -v nginx &> /dev/null; then
-    echo -e "${RED}✗ Nginx is not installed${NC}"
-    exit 1
-fi
-
-echo -e "${GREEN}✓ All requirements verified${NC}"
 
 echo -e "\n${YELLOW}[1/7] Checking current active container...${NC}"
 
@@ -87,9 +81,11 @@ echo -e "\n${YELLOW}[4/7] Starting ${NEW_COLOR} container...${NC}"
 docker run -d \
   --name ${NEW_CONTAINER} \
   --restart unless-stopped \
-  --add-host=host.docker.internal:host-gateway \
+  --network motionit-network \
   -p ${NEW_PORT}:8080 \
+  -v /home/ubuntu/application-prod.yml:/app/application-prod.yml:ro \
   -e SPRING_PROFILES_ACTIVE=prod \
+  -e SPRING_CONFIG_ADDITIONAL_LOCATION=file:/app/application-prod.yml \
   -e DATABASE_URL="${DATABASE_URL}" \
   -e DB_USERNAME="${DB_USERNAME}" \
   -e DB_PASSWORD="${DB_PASSWORD}" \

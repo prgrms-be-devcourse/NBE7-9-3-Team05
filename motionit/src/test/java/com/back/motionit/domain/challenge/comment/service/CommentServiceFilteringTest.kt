@@ -1,212 +1,257 @@
-package com.back.motionit.domain.challenge.comment.service;
+package com.back.motionit.domain.challenge.comment.service
 
-import static org.assertj.core.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import com.back.motionit.domain.challenge.comment.dto.CommentCreateReq
+import com.back.motionit.domain.challenge.comment.dto.CommentEditReq
+import com.back.motionit.domain.challenge.comment.entity.Comment
+import com.back.motionit.domain.challenge.comment.moderation.CommentModeration
+import com.back.motionit.domain.challenge.comment.repository.CommentRepository
+import com.back.motionit.domain.challenge.like.repository.CommentLikeRepository
+import com.back.motionit.domain.challenge.like.service.CommentLikeService
+import com.back.motionit.domain.challenge.participant.entity.ChallengeParticipant
+import com.back.motionit.domain.challenge.room.entity.ChallengeRoom
+import com.back.motionit.domain.challenge.room.repository.ChallengeRoomRepository
+import com.back.motionit.domain.challenge.validator.ChallengeAuthValidator
+import com.back.motionit.domain.user.entity.User
+import com.back.motionit.domain.user.repository.UserRepository
+import com.back.motionit.global.error.code.CommentErrorCode
+import com.back.motionit.global.error.exception.BusinessException
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
+import org.mockito.InjectMocks
+import org.mockito.Mock
+import org.mockito.Mockito.*
+import org.mockito.junit.jupiter.MockitoExtension
+import org.springframework.test.util.ReflectionTestUtils
+import java.time.LocalDateTime
+import java.util.*
 
-import java.util.Optional;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
-
-import com.back.motionit.domain.challenge.comment.dto.CommentCreateReq;
-import com.back.motionit.domain.challenge.comment.dto.CommentEditReq;
-import com.back.motionit.domain.challenge.comment.dto.CommentRes;
-import com.back.motionit.domain.challenge.comment.entity.Comment;
-import com.back.motionit.domain.challenge.comment.moderation.CommentModeration;
-import com.back.motionit.domain.challenge.comment.repository.CommentRepository;
-import com.back.motionit.domain.challenge.like.repository.CommentLikeRepository;
-import com.back.motionit.domain.challenge.room.entity.ChallengeRoom;
-import com.back.motionit.domain.challenge.room.repository.ChallengeRoomRepository;
-import com.back.motionit.domain.challenge.validator.ChallengeAuthValidator;
-import com.back.motionit.domain.user.entity.User;
-import com.back.motionit.domain.user.repository.UserRepository;
-import com.back.motionit.global.error.code.CommentErrorCode;
-import com.back.motionit.global.error.exception.BusinessException;
-
-@ExtendWith(MockitoExtension.class)
+@ExtendWith(MockitoExtension::class)
 class CommentServiceFilteringTest {
 
-	@Mock
-	private CommentRepository commentRepository;
-	@Mock
-	private ChallengeRoomRepository challengeRoomRepository;
-	@Mock
-	private UserRepository userRepository;
-	@Mock
-	private CommentLikeRepository commentLikeRepository;
-	@Mock
-	private CommentModeration commentModeration;
-	@Mock
-	private ChallengeAuthValidator challengeAuthValidator;
+    @Mock
+    private lateinit var commentRepository: CommentRepository
 
-	@InjectMocks
-	private CommentService commentService;
+    @Mock
+    private lateinit var challengeRoomRepository: ChallengeRoomRepository
 
-	private static final Long ROOM_ID = 10L;
-	private static final Long USER_ID = 101L;
-	private static final Long COMMENT_ID = 1000L;
+    @Mock
+    private lateinit var userRepository: UserRepository
 
-	private ChallengeRoom mockRoom;
-	private User author;
+    @Mock
+    lateinit var commentLikeService: CommentLikeService
 
-	@BeforeEach
-	void setUp() {
-		mockRoom = mock(ChallengeRoom.class);
-		author = new User(USER_ID, "alice");
-		// 일부 테스트에서 호출되지 않아도 괜찮도록 lenient
-		lenient().when(mockRoom.getId()).thenReturn(ROOM_ID);
-	}
+    @Mock
+    private lateinit var commentLikeRepository: CommentLikeRepository
 
-	// 활성 댓글 빌더 (id 주입)
-	private Comment activeComment(Long id, ChallengeRoom room, User user, String content) {
-		Comment comment = Comment.builder()
-			.challengeRoom(room)
-			.user(user)
-			.content(content)
-			.build();
-		ReflectionTestUtils.setField(comment, "id", id);
-		return comment;
-	}
+    @Mock
+    private lateinit var commentModeration: CommentModeration
 
-	// -------- 공통 가드 스텁 (CREATE용): 불필요 스텁 최소화 ----------
-	private void stubGuardsForCreateBasic() {
-		when(challengeRoomRepository.existsById(ROOM_ID)).thenReturn(true);
-		when(challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID)).thenReturn(null);
-		when(challengeRoomRepository.findById(ROOM_ID)).thenReturn(Optional.of(mockRoom));
-		when(userRepository.findById(USER_ID)).thenReturn(Optional.of(author));
-		// save 시 id 부여는 "ALLOW 성공" 케이스에만 필요 → 각 테스트에서 개별로 스텁
-	}
+    @Mock
+    private lateinit var challengeAuthValidator: ChallengeAuthValidator
 
-	// -------- 공통 가드 스텁 (EDIT용): 불필요 스텁 최소화 ----------
-	private void stubGuardsForEditBasic(Comment target) {
-		when(challengeRoomRepository.existsById(ROOM_ID)).thenReturn(true);
-		when(challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID)).thenReturn(null);
-		when(commentRepository.findByIdAndChallengeRoom_IdAndDeletedAtIsNull(COMMENT_ID, ROOM_ID))
-			.thenReturn(Optional.of(target));
-		// like 조회/참조는 "ALLOW 성공" 케이스에서만 필요 → 각 테스트에서 개별로 스텁
-	}
+    @InjectMocks
+    private lateinit var commentService: CommentService
 
-	// ------------------------ CREATE (필터링) ------------------------
+    private lateinit var mockRoom: ChallengeRoom
+    private lateinit var author: User
 
-	@Test
-	@DisplayName("create: ALLOW → 저장 성공")
-	void create_allow_saves() {
-		stubGuardsForCreateBasic();
-		// ALLOW
-		doNothing().when(commentModeration).assertClean("정상 댓글");
+    @BeforeEach
+    fun setUp() {
+        mockRoom = mock(ChallengeRoom::class.java)
+        author = User(USER_ID, "alice")   // 기존 자바 테스트와 동일 가정
 
-		// save 시 id 부여 (여기서만 필요) — 정확히 객체 인스턴스에 setField
-		doAnswer(inv -> {
-			Object arg = inv.getArgument(0);
-			ReflectionTestUtils.setField(arg, "id", 777L);
-			return null;
-		}).when(commentRepository).save(any(Comment.class));
+        // lenient: 방 id 조회가 안 쓰이는 테스트에서도 stubbing 예외 안 나게
+        lenient().`when`(mockRoom.id).thenReturn(ROOM_ID)
+    }
 
-		CommentRes res = commentService.create(ROOM_ID, USER_ID, new CommentCreateReq("정상 댓글"));
+    // 활성 댓글 빌더 (id 주입)
+    private fun activeComment(
+        id: Long,
+        room: ChallengeRoom,
+        user: User,
+        content: String,
+    ): Comment {
+        val comment = Comment(
+            deletedAt = null,
+            challengeRoom = room,
+            user = user,
+            content = content,
+            likeCount = 0,
+            version = null,
+        )
 
-		assertThat(res).isNotNull();
-		assertThat(res.roomId()).isEqualTo(ROOM_ID);
-		assertThat(res.authorId()).isEqualTo(USER_ID);
-		verify(commentRepository, times(1)).save(any(Comment.class));
-		verify(commentModeration, times(1)).assertClean("정상 댓글");
-	}
+        val now = LocalDateTime.now()
+        ReflectionTestUtils.setField(comment, "id", id)
+        ReflectionTestUtils.setField(comment, "createDate", now)
+        ReflectionTestUtils.setField(comment, "modifyDate", now)
 
-	@Test
-	@DisplayName("create: WARN → INAPPROPRIATE_CONTENT_WARN 예외")
-	void create_warn_throws() {
-		stubGuardsForCreateBasic();
-		doThrow(new BusinessException(CommentErrorCode.INAPPROPRIATE_CONTENT_WARN))
-			.when(commentModeration).assertClean("살짝 비매너");
+        return comment
+    }
 
-		BusinessException ex = assertThrows(
-			BusinessException.class,
-			() -> commentService.create(ROOM_ID, USER_ID, new CommentCreateReq("살짝 비매너"))
-		);
+    // -------- 공통 가드 스텁 (CREATE용): 불필요 스텁 최소화 ----------
+    private fun stubGuardsForCreateBasic() {
+        `when`(challengeRoomRepository.existsById(ROOM_ID)).thenReturn(true)
+        `when`(challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID))
+            .thenReturn(null as ChallengeParticipant?)
 
-		assertThat(ex.getErrorCode()).isEqualTo(CommentErrorCode.INAPPROPRIATE_CONTENT_WARN);
-		verify(commentRepository, never()).save(any());
-	}
+        @Suppress("UNCHECKED_CAST")
+        val optionalRoom: Optional<ChallengeRoom?> =
+            Optional.of(mockRoom) as Optional<ChallengeRoom?>
 
-	@Test
-	@DisplayName("create: BLOCK → INAPPROPRIATE_CONTENT_BLOCK 예외")
-	void create_block_throws() {
-		stubGuardsForCreateBasic();
-		doThrow(new BusinessException(CommentErrorCode.INAPPROPRIATE_CONTENT_BLOCK))
-			.when(commentModeration).assertClean("심한 욕설");
+        `when`(challengeRoomRepository.findById(ROOM_ID))
+            .thenReturn(optionalRoom)
 
-		BusinessException ex = assertThrows(
-			BusinessException.class,
-			() -> commentService.create(ROOM_ID, USER_ID, new CommentCreateReq("심한 욕설"))
-		);
+        `when`(userRepository.findById(USER_ID))
+            .thenReturn(Optional.of(author))
+    }
 
-		assertThat(ex.getErrorCode()).isEqualTo(CommentErrorCode.INAPPROPRIATE_CONTENT_BLOCK);
-		verify(commentRepository, never()).save(any());
-	}
+    // -------- 공통 가드 스텁 (EDIT용): 불필요 스텁 최소화 ----------
+    private fun stubGuardsForEditBasic(target: Comment) {
+        `when`(challengeRoomRepository.existsById(ROOM_ID)).thenReturn(true)
+        `when`(challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID))
+            .thenReturn(null as ChallengeParticipant?)
+        `when`(
+            commentRepository.findByIdAndChallengeRoom_IdAndDeletedAtIsNull(
+                COMMENT_ID,
+                ROOM_ID
+            )
+        ).thenReturn(Optional.of(target))
+        // like 조회는 ALLOW 성공 케이스에서만 사용 → 각 테스트에서 개별 스텁
+    }
 
-	// ------------------------ EDIT (필터링) ------------------------
+    // ------------------------ CREATE (필터링) ------------------------
 
-	@Test
-	@DisplayName("edit: ALLOW → 내용 업데이트 성공")
-	void edit_allow_updates() {
-		Comment own = activeComment(COMMENT_ID, mockRoom, author, "old");
-		stubGuardsForEditBasic(own);
+    @Test
+    @DisplayName("create: ALLOW → 저장 성공")
+    fun create_allow_saves() {
+        stubGuardsForCreateBasic()
+        // ALLOW
+        doNothing().`when`(commentModeration).assertClean("정상 댓글")
 
-		// ALLOW
-		doNothing().when(commentModeration).assertClean("new clean");
+        // save 시 id 부여
+        `when`(commentRepository.save(any(Comment::class.java))).thenAnswer { inv ->
+            val saved = inv.getArgument<Comment>(0)
+            val now = LocalDateTime.now()
+            ReflectionTestUtils.setField(saved, "id", 777L)
+            ReflectionTestUtils.setField(saved, "createDate", now)
+            ReflectionTestUtils.setField(saved, "modifyDate", now)
+            saved
+        }
 
-		// 좋아요 여부/참조 — ALLOW 성공 케이스에서만 필요하므로 여기서만 스텁
-		when(userRepository.getReferenceById(USER_ID)).thenReturn(author);
-		when(commentLikeRepository.existsByCommentAndUser(own, author)).thenReturn(false);
+        val res = commentService.create(ROOM_ID, USER_ID, CommentCreateReq("정상 댓글"))
 
-		CommentRes res = commentService.edit(ROOM_ID, COMMENT_ID, USER_ID, new CommentEditReq("new clean"));
+        assertThat(res).isNotNull()
+        assertThat(res.roomId).isEqualTo(ROOM_ID)
+        assertThat(res.authorId).isEqualTo(USER_ID)
+        verify(commentRepository, times(1)).save(any(Comment::class.java))
+        verify(commentModeration, times(1)).assertClean("정상 댓글")
+    }
 
-		assertThat(res).isNotNull();
-		verify(commentModeration, times(1)).assertClean("new clean");
-		verify(commentLikeRepository, times(1)).existsByCommentAndUser(own, author);
-	}
+    @Test
+    @DisplayName("create: WARN → INAPPROPRIATE_CONTENT_WARN 예외")
+    fun create_warn_throws() {
+        stubGuardsForCreateBasic()
+        doThrow(BusinessException(CommentErrorCode.INAPPROPRIATE_CONTENT_WARN))
+            .`when`(commentModeration).assertClean("살짝 비매너")
 
-	@Test
-	@DisplayName("edit: WARN → INAPPROPRIATE_CONTENT_WARN 예외")
-	void edit_warn_throws() {
-		Comment own = activeComment(COMMENT_ID, mockRoom, author, "old");
-		stubGuardsForEditBasic(own);
+        val ex = assertThrows(BusinessException::class.java) {
+            commentService.create(ROOM_ID, USER_ID, CommentCreateReq("살짝 비매너"))
+        }
 
-		doThrow(new BusinessException(CommentErrorCode.INAPPROPRIATE_CONTENT_WARN))
-			.when(commentModeration).assertClean("살짝 비매너");
+        assertThat(ex.errorCode).isEqualTo(CommentErrorCode.INAPPROPRIATE_CONTENT_WARN)
+        verifyNoInteractions(commentLikeRepository)
+    }
 
-		BusinessException ex = assertThrows(
-			BusinessException.class,
-			() -> commentService.edit(ROOM_ID, COMMENT_ID, USER_ID, new CommentEditReq("살짝 비매너"))
-		);
-		assertThat(ex.getErrorCode()).isEqualTo(CommentErrorCode.INAPPROPRIATE_CONTENT_WARN);
+    @Test
+    @DisplayName("create: BLOCK → INAPPROPRIATE_CONTENT_BLOCK 예외")
+    fun create_block_throws() {
+        stubGuardsForCreateBasic()
+        doThrow(BusinessException(CommentErrorCode.INAPPROPRIATE_CONTENT_BLOCK))
+            .`when`(commentModeration).assertClean("심한 욕설")
 
-		// WARN으로 바로 예외 → like 조회 없어야 함
-		verify(commentLikeRepository, never()).existsByCommentAndUser(any(), any());
-	}
+        val ex = assertThrows(BusinessException::class.java) {
+            commentService.create(ROOM_ID, USER_ID, CommentCreateReq("심한 욕설"))
+        }
 
-	@Test
-	@DisplayName("edit: BLOCK → INAPPROPRIATE_CONTENT_BLOCK 예외")
-	void edit_block_throws() {
-		Comment own = activeComment(COMMENT_ID, mockRoom, author, "old");
-		stubGuardsForEditBasic(own);
+        assertThat(ex.errorCode).isEqualTo(CommentErrorCode.INAPPROPRIATE_CONTENT_BLOCK)
+        verifyNoInteractions(commentLikeRepository)
+    }
 
-		doThrow(new BusinessException(CommentErrorCode.INAPPROPRIATE_CONTENT_BLOCK))
-			.when(commentModeration).assertClean("심한 욕설");
+    // ------------------------ EDIT (필터링) ------------------------
 
-		BusinessException ex = assertThrows(
-			BusinessException.class,
-			() -> commentService.edit(ROOM_ID, COMMENT_ID, USER_ID, new CommentEditReq("심한 욕설"))
-		);
-		assertThat(ex.getErrorCode()).isEqualTo(CommentErrorCode.INAPPROPRIATE_CONTENT_BLOCK);
+    @Test
+    @DisplayName("edit: ALLOW → 내용 업데이트 성공")
+    fun edit_allow_updates() {
+        val own = activeComment(COMMENT_ID, mockRoom, author, "old")
+        stubGuardsForEditBasic(own)
 
-		// BLOCK으로 바로 예외 → like 조회 없어야 함
-		verify(commentLikeRepository, never()).existsByCommentAndUser(any(), any());
-	}
+        // ALLOW
+        doNothing().`when`(commentModeration).assertClean("new clean")
+
+        // 좋아요 여부/참조
+        `when`(userRepository.getReferenceById(USER_ID)).thenReturn(author)
+        `when`(commentLikeRepository.existsByCommentAndUser(own, author)).thenReturn(false)
+
+        val res = commentService.edit(ROOM_ID, COMMENT_ID, USER_ID, CommentEditReq("new clean"))
+
+        assertThat(res).isNotNull()
+        verify(commentModeration, times(1)).assertClean("new clean")
+        verify(commentLikeRepository, times(1)).existsByCommentAndUser(own, author)
+    }
+
+    @Test
+    @DisplayName("edit: WARN → INAPPROPRIATE_CONTENT_WARN 예외")
+    fun edit_warn_throws() {
+        val own = activeComment(COMMENT_ID, mockRoom, author, "old")
+        stubGuardsForEditBasic(own)
+
+        doThrow(BusinessException(CommentErrorCode.INAPPROPRIATE_CONTENT_WARN))
+            .`when`(commentModeration).assertClean("살짝 비매너")
+
+        val ex = assertThrows(BusinessException::class.java) {
+            commentService.edit(ROOM_ID, COMMENT_ID, USER_ID, CommentEditReq("살짝 비매너"))
+        }
+
+        assertThat(ex.errorCode).isEqualTo(CommentErrorCode.INAPPROPRIATE_CONTENT_WARN)
+
+
+        // ✅ 이렇게 "단독 호출"만 남겨
+        verifyNoInteractions(commentLikeRepository)
+
+        verifyNoInteractions(commentLikeService)
+    }
+
+    @Test
+    @DisplayName("edit: BLOCK → INAPPROPRIATE_CONTENT_BLOCK 예외")
+    fun edit_block_throws() {
+        val own = activeComment(COMMENT_ID, mockRoom, author, "old")
+        stubGuardsForEditBasic(own)
+
+        doThrow(BusinessException(CommentErrorCode.INAPPROPRIATE_CONTENT_BLOCK))
+            .`when`(commentModeration).assertClean("심한 욕설")
+
+        val ex = assertThrows(BusinessException::class.java) {
+            commentService.edit(ROOM_ID, COMMENT_ID, USER_ID, CommentEditReq("심한 욕설"))
+        }
+
+        assertThat(ex.errorCode).isEqualTo(CommentErrorCode.INAPPROPRIATE_CONTENT_BLOCK)
+
+        // ❌ 절대 이렇게 쓰면 안 됨:
+        // verify(commentLikeRepository, never())
+        //     .existsByCommentAndUser(any(), any())
+
+        // ✅ 이렇게만!
+        verifyNoInteractions(commentLikeRepository)
+        verifyNoInteractions(commentLikeService)
+    }
+
+    companion object {
+        private const val ROOM_ID = 10L
+        private const val USER_ID = 101L
+        private const val COMMENT_ID = 1000L
+    }
 }

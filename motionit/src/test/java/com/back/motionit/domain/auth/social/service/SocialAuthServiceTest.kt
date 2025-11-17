@@ -1,232 +1,228 @@
-package com.back.motionit.domain.auth.social.service;
+package com.back.motionit.domain.auth.social.service
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.BDDMockito.*;
+import com.back.motionit.domain.auth.service.AuthTokenService
+import com.back.motionit.domain.user.entity.LoginType
+import com.back.motionit.domain.user.entity.User
+import com.back.motionit.domain.user.repository.UserRepository
+import com.back.motionit.global.error.code.AuthErrorCode
+import com.back.motionit.global.error.exception.BusinessException
+import com.back.motionit.security.jwt.JwtTokenDto
+import com.back.motionit.security.jwt.JwtTokenProvider
+import org.assertj.core.api.Assertions
+import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
+import org.mockito.ArgumentMatchers
+import org.mockito.BDDMockito.given
+import org.mockito.InjectMocks
+import org.mockito.Mock
+import org.mockito.Mockito.never
+import org.mockito.Mockito.verify
+import org.mockito.invocation.InvocationOnMock
+import org.mockito.junit.jupiter.MockitoExtension
+import org.mockito.kotlin.any
+import org.springframework.security.crypto.password.PasswordEncoder
+import org.springframework.test.util.ReflectionTestUtils
+import java.util.*
+import java.util.Map
 
-import java.util.Map;
-import java.util.Optional;
-
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.util.ReflectionTestUtils;
-
-import com.back.motionit.domain.auth.service.AuthTokenService;
-import com.back.motionit.domain.user.entity.LoginType;
-import com.back.motionit.domain.user.entity.User;
-import com.back.motionit.domain.user.repository.UserRepository;
-import com.back.motionit.global.error.code.AuthErrorCode;
-import com.back.motionit.global.error.exception.BusinessException;
-import com.back.motionit.security.jwt.JwtTokenDto;
-import com.back.motionit.security.jwt.JwtTokenProvider;
-
-@ExtendWith(MockitoExtension.class)
+@ExtendWith(MockitoExtension::class)
 @DisplayName("SocialAuthService 단위 테스트")
-class SocialAuthServiceTest {
+internal class SocialAuthServiceTest {
+    @InjectMocks
+    private lateinit var socialAuthService: SocialAuthService
 
-	@InjectMocks
-	private SocialAuthService socialAuthService;
+    @Mock
+    private lateinit var userRepository: UserRepository
 
-	@Mock
-	private UserRepository userRepository;
+    @Mock
+    private lateinit var passwordEncoder: PasswordEncoder
 
-	@Mock
-	private PasswordEncoder passwordEncoder;
+    @Mock
+    private lateinit var authTokenService: AuthTokenService
 
-	@Mock
-	private AuthTokenService authTokenService;
+    @Mock
+    private lateinit var jwtTokenProvider: JwtTokenProvider
 
-	@Mock
-	private JwtTokenProvider jwtTokenProvider;
+    @Test
+    @DisplayName("카카오 신규 회원가입 - 성공")
+    fun join_KakaoUser_Success() {
 
-	@Test
-	@DisplayName("카카오 신규 회원가입 - 성공")
-	void join_KakaoUser_Success() {
-		// given
-		Long kakaoId = 123456789L;
-		String email = null;
-		String nickname = "테스터";
-		String password = "";
-		LoginType loginType = LoginType.KAKAO;
-		String userProfile = "https://profile.com/image.jpg";
+        val kakaoId = 123456789L
+        val email: String? = null
+        val nickname = "테스터"
+        val password = ""
+        val loginType = LoginType.KAKAO
+        val userProfile = "https://profile.com/image.jpg"
 
-		given(userRepository.findByKakaoId(kakaoId)).willReturn(Optional.empty());
-		given(userRepository.findByNickname(nickname)).willReturn(Optional.empty());
-		given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
+        given(userRepository.findByKakaoId(kakaoId)).willReturn(Optional.empty())
+        given(userRepository.existsByNickname(nickname)).willReturn(false)
+        given(userRepository.save(any()))
+            .willAnswer { invocation: InvocationOnMock -> invocation.getArgument(0) }
 
-		// when
-		User result = socialAuthService.modifyOrJoin(kakaoId, email, nickname, password, loginType, userProfile);
+        val result = socialAuthService.modifyOrJoin(kakaoId, email, nickname, password, loginType, userProfile)
 
-		// then
-		assertThat(result).isNotNull();
-		assertThat(result.getKakaoId()).isEqualTo(kakaoId);
-		assertThat(result.getEmail()).isNull();
-		assertThat(result.getNickname()).isEqualTo(nickname);
-		assertThat(result.getPassword()).isNull();
-		assertThat(result.getLoginType()).isEqualTo(loginType);
-		assertThat(result.getUserProfile()).isEqualTo(userProfile);
+        assertThat(result).isNotNull()
+        assertThat(result.kakaoId).isEqualTo(kakaoId)
+        assertThat(result.email).isNull()
+        assertThat(result.nickname).isEqualTo(nickname)
+        assertThat(result.password).isNull()
+        assertThat(result.loginType).isEqualTo(loginType)
+        assertThat(result.userProfile).isEqualTo(userProfile)
 
-		verify(userRepository).findByNickname(nickname);
-		verify(passwordEncoder, never()).encode(anyString());
-		verify(userRepository).save(any(User.class));
-	}
+        verify(userRepository).existsByNickname(nickname)
+        verify(passwordEncoder, never()).encode(ArgumentMatchers.anyString())
+        verify(userRepository).save(any())
+    }
 
-	@Test
-	@DisplayName("카카오 회원가입 - 닉네임 중복으로 실패")
-	void join_NicknameDuplicated_ThrowsException() {
-		// given
-		Long kakaoId = 123456789L;
-		String email = null;
-		String nickname = "중복닉네임";
-		String password = "";
-		LoginType loginType = LoginType.KAKAO;
-		String userProfile = "https://profile.com/image.jpg";
+    @Test
+    @DisplayName("카카오 회원가입 - 닉네임 중복으로 실패")
+    fun join_NicknameDuplicated_ThrowsException() {
 
-		User existingUser = User.builder()
-			.nickname(nickname)
-			.build();
-		given(userRepository.findByNickname(nickname)).willReturn(Optional.of(existingUser));
+        val kakaoId = 123456789L
+        val email: String? = null
+        val nickname = "중복닉네임"
+        val password = ""
+        val loginType = LoginType.KAKAO
+        val userProfile = "https://profile.com/image.jpg"
 
-		// when & then
-		assertThatThrownBy(() ->
-			socialAuthService.modifyOrJoin(kakaoId, email, nickname, password, loginType, userProfile))
-			.isInstanceOf(BusinessException.class)
-			.hasFieldOrPropertyWithValue("errorCode", AuthErrorCode.NICKNAME_DUPLICATED);
+        given(userRepository.existsByNickname(nickname)).willReturn(true)
 
-		verify(userRepository).findByNickname(nickname);
-		verify(userRepository, never()).save(any(User.class));
-	}
+        assertThatThrownBy {
+            socialAuthService.modifyOrJoin(
+                kakaoId,
+                email,
+                nickname,
+                password,
+                loginType,
+                userProfile
+            )
+        }
+            .isInstanceOf(BusinessException::class.java)
+            .hasFieldOrPropertyWithValue("errorCode", AuthErrorCode.NICKNAME_DUPLICATED)
 
-	@Test
-	@DisplayName("기존 카카오 회원 정보 수정")
-	void modifyOrJoin_ExistingKakaoUser_UpdatesUser() {
-		// given
-		Long kakaoId = 123456789L;
-		String email = null;
-		String newNickname = "새닉네임";
-		String password = "";
-		LoginType loginType = LoginType.KAKAO;
-		String newUserProfile = "https://profile.com/new-image.jpg";
+        verify(userRepository).existsByNickname(nickname)
+        verify(userRepository, never()).save(any())
+    }
 
-		User existingUser = User.builder()
-			.kakaoId(kakaoId)
-			.email(null)
-			.nickname("기존닉네임")
-			.password(null)
-			.loginType(loginType)
-			.userProfile("https://profile.com/old-image.jpg")
-			.build();
+    @Test
+    @DisplayName("기존 카카오 회원 정보 수정")
+    fun modifyOrJoin_ExistingKakaoUser_UpdatesUser() {
 
-		given(userRepository.findByKakaoId(kakaoId)).willReturn(Optional.of(existingUser));
+        val kakaoId = 123456789L
+        val email: String? = null
+        val newNickname = "새닉네임"
+        val password = ""
+        val loginType = LoginType.KAKAO
+        val newUserProfile = "https://profile.com/new-image.jpg"
 
-		// when
-		User result = socialAuthService.modifyOrJoin(kakaoId, email, newNickname, password, loginType, newUserProfile);
+        val existingUser = User.builder()
+            .kakaoId(kakaoId)
+            .email(null)
+            .nickname("기존닉네임")
+            .password(null)
+            .loginType(loginType)
+            .userProfile("https://profile.com/old-image.jpg")
+            .build()
 
-		// then
-		assertThat(result).isSameAs(existingUser); // 같은 객체인지 확인
-		assertThat(result.getNickname()).isEqualTo(newNickname);
-		assertThat(result.getUserProfile()).isEqualTo(newUserProfile);
+        given(userRepository.findByKakaoId(kakaoId)).willReturn(Optional.of(existingUser))
 
-		verify(userRepository).findByKakaoId(kakaoId);
-		verify(userRepository, never()).save(any(User.class));
-	}
+        val result = socialAuthService.modifyOrJoin(kakaoId, email, newNickname, password, loginType, newUserProfile)
 
-	@Test
-	@DisplayName("사용자 ID로 토큰 생성 - 성공")
-	void generateTokensById_Success() {
-		// given
-		Long userId = 1L;
-		User user = User.builder()
-			.kakaoId(123456789L)
-			.email(null)
-			.nickname("테스터")
-			.password(null)
-			.loginType(LoginType.KAKAO)
-			.userProfile("https://profile.com/image.jpg")
-			.build();
+        assertThat(result).isSameAs(existingUser) // 같은 객체인지 확인
+        assertThat(result.nickname).isEqualTo(newNickname)
+        assertThat(result.userProfile).isEqualTo(newUserProfile)
 
-		// ID 설정 (중요!)
-		ReflectionTestUtils.setField(user, "id", userId);
+        verify(userRepository).findByKakaoId(kakaoId)
+        verify(userRepository, never()).save(any())
+    }
 
-		JwtTokenDto expectedTokenDto = JwtTokenDto.builder()
-			.grantType("Bearer")
-			.accessToken("accessToken")
-			.refreshToken("refreshToken")
-			.accessTokenExpiresIn(3600L)
-			.build();
+    @Test
+    @DisplayName("사용자 ID로 토큰 생성 - 성공")
+    fun generateTokensById_Success() {
 
-		given(userRepository.findById(userId)).willReturn(Optional.of(user));
-		given(authTokenService.generateTokens(user)).willReturn(expectedTokenDto);
+        val userId = 1L
+        val user = User.builder()
+            .kakaoId(123456789L)
+            .email(null)
+            .nickname("테스터")
+            .password(null)
+            .loginType(LoginType.KAKAO)
+            .userProfile("https://profile.com/image.jpg")
+            .build()
 
-		// when
-		JwtTokenDto result = socialAuthService.generateTokensById(userId);
+        ReflectionTestUtils.setField(user, "id", userId)
 
-		// then
-		assertThat(result).isNotNull();
-		assertThat(result.getGrantType()).isEqualTo("Bearer");
-		assertThat(result.getAccessToken()).isEqualTo("accessToken");
-		assertThat(result.getRefreshToken()).isEqualTo("refreshToken");
+        val expectedTokenDto = JwtTokenDto.builder()
+            .grantType("Bearer")
+            .accessToken("accessToken")
+            .refreshToken("refreshToken")
+            .accessTokenExpiresIn(3600L)
+            .build()
 
-		verify(userRepository).findById(userId);
-		verify(authTokenService).generateTokens(user);
-	}
+        given(userRepository.findById(userId)).willReturn(Optional.of(user))
+        given(authTokenService.generateTokens(user)).willReturn(expectedTokenDto)
 
-	@Test
-	@DisplayName("사용자 ID로 토큰 생성 - 사용자 없음")
-	void generateTokensById_UserNotFound_ThrowsException() {
-		// given
-		Long userId = 999L;
-		given(userRepository.findById(userId)).willReturn(Optional.empty());
+        val result = socialAuthService!!.generateTokensById(userId)
 
-		// when & then
-		assertThatThrownBy(() -> socialAuthService.generateTokensById(userId))
-			.isInstanceOf(BusinessException.class)
-			.hasFieldOrPropertyWithValue("errorCode", AuthErrorCode.USER_NOT_FOUND);
+        assertThat(result).isNotNull()
+        assertThat(result.grantType).isEqualTo("Bearer")
+        assertThat(result.accessToken).isEqualTo("accessToken")
+        assertThat(result.refreshToken).isEqualTo("refreshToken")
 
-		verify(userRepository).findById(userId);
-		verify(authTokenService, never()).generateTokens(any(User.class));
-	}
+        verify(userRepository).findById(userId)
+        verify(authTokenService).generateTokens(user)
+    }
 
-	@Test
-	@DisplayName("토큰에서 페이로드 추출 - 성공")
-	void payloadOrNull_ValidToken_ReturnsPayload() {
-		// given
-		String accessToken = "validAccessToken";
-		Map<String, Object> expectedPayload = Map.of(
-			"id", 1L,
-			"nickname", "테스터"
-		);
+    @Test
+    @DisplayName("사용자 ID로 토큰 생성 - 사용자 없음")
+    fun generateTokensById_UserNotFound_ThrowsException() {
 
-		given(jwtTokenProvider.payloadOrNull(accessToken)).willReturn(expectedPayload);
+        val userId = 999L
+        given(userRepository.findById(userId)).willReturn(Optional.empty())
 
-		// when
-		Map<String, Object> result = socialAuthService.payloadOrNull(accessToken);
+        Assertions.assertThatThrownBy { socialAuthService.generateTokensById(userId) }
+            .isInstanceOf(BusinessException::class.java)
+            .hasFieldOrPropertyWithValue("errorCode", AuthErrorCode.USER_NOT_FOUND)
 
-		// then
-		assertThat(result).isNotNull();
-		assertThat(result.get("id")).isEqualTo(1L);
-		assertThat(result.get("nickname")).isEqualTo("테스터");
+        verify(userRepository).findById(userId)
+        verify(authTokenService, never()).generateTokens(any())
+    }
 
-		verify(jwtTokenProvider).payloadOrNull(accessToken);
-	}
+    @Test
+    @DisplayName("토큰에서 페이로드 추출 - 성공")
+    fun payloadOrNull_ValidToken_ReturnsPayload() {
 
-	@Test
-	@DisplayName("토큰에서 페이로드 추출 - 유효하지 않은 토큰")
-	void payloadOrNull_InvalidToken_ReturnsNull() {
-		// given
-		String accessToken = "invalidAccessToken";
-		given(jwtTokenProvider.payloadOrNull(accessToken)).willReturn(null);
+        val accessToken = "validAccessToken"
+        val expectedPayload = Map.of<String, Any?>(
+            "id", 1L,
+            "nickname", "테스터"
+        )
 
-		// when
-		Map<String, Object> result = socialAuthService.payloadOrNull(accessToken);
+        given(jwtTokenProvider.payloadOrNull(accessToken)).willReturn(expectedPayload)
 
-		// then
-		assertThat(result).isNull();
+        val result = socialAuthService.payloadOrNull(accessToken)
 
-		verify(jwtTokenProvider).payloadOrNull(accessToken);
-	}
+        assertThat(result).isNotNull()
+        assertThat(result!!["id"]).isEqualTo(1L)
+        assertThat(result["nickname"]).isEqualTo("테스터")
+
+        verify(jwtTokenProvider).payloadOrNull(accessToken)
+    }
+
+    @Test
+    @DisplayName("토큰에서 페이로드 추출 - 유효하지 않은 토큰")
+    fun payloadOrNull_InvalidToken_ReturnsNull() {
+
+        val accessToken = "invalidAccessToken"
+        given(jwtTokenProvider.payloadOrNull(accessToken)).willReturn(null)
+
+        val result = socialAuthService.payloadOrNull(accessToken)
+
+        assertThat(result).isNull()
+
+        verify(jwtTokenProvider).payloadOrNull(accessToken)
+    }
 }

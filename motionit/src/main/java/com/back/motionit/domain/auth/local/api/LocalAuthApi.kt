@@ -32,7 +32,7 @@ interface LocalAuthApi {
     @ResponseStatus(
         HttpStatus.CREATED
     )
-    fun signup(@Valid @RequestBody request: SignupRequest): ResponseData<AuthResponse>
+    fun signup(@RequestBody @Valid request: SignupRequest): ResponseData<AuthResponse>
 
     @Operation(summary = "로그인", description = "이메일과 비밀번호로 로그인합니다.")
     @ApiResponses(
@@ -43,7 +43,7 @@ interface LocalAuthApi {
         ), ApiResponse(responseCode = "401", description = "이메일 또는 비밀번호 불일치 (U-102)")
     )
     @PostMapping("/login")
-    fun login(@Valid @RequestBody request: LoginRequest): ResponseData<AuthResponse>
+    fun login(@RequestBody @Valid request: LoginRequest): ResponseData<AuthResponse>
 
     @Operation(summary = "로그아웃", description = "리프레시 토큰을 제거하여 로그아웃합니다.")
     @ApiResponses(

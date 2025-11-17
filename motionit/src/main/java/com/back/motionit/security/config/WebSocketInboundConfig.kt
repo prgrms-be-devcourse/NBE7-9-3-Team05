@@ -1,20 +1,16 @@
-package com.back.motionit.security.config;
+package com.back.motionit.security.config
 
-import org.springframework.context.annotation.Configuration;
-import org.springframework.messaging.simp.config.ChannelRegistration;
-import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
-
-import com.back.motionit.security.socket.StompAuthChannelInterceptor;
-
-import lombok.RequiredArgsConstructor;
+import com.back.motionit.security.socket.StompAuthChannelInterceptor
+import org.springframework.context.annotation.Configuration
+import org.springframework.messaging.simp.config.ChannelRegistration
+import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer
 
 @Configuration
-@RequiredArgsConstructor
-public class WebSocketInboundConfig implements WebSocketMessageBrokerConfigurer {
-	private final StompAuthChannelInterceptor authInterceptor;
+class WebSocketInboundConfig(
+    private val authInterceptor: StompAuthChannelInterceptor
+) : WebSocketMessageBrokerConfigurer {
 
-	@Override
-	public void configureClientInboundChannel(ChannelRegistration registration) {
-		registration.interceptors(authInterceptor);
-	}
+    override fun configureClientInboundChannel(registration: ChannelRegistration) {
+        registration.interceptors(authInterceptor)
+    }
 }

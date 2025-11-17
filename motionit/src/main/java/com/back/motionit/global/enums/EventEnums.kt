@@ -1,12 +1,7 @@
-package com.back.motionit.global.enums;
+package com.back.motionit.global.enums
 
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-
-@Getter
-@RequiredArgsConstructor
-public enum EventEnums {
-	ROOM("ROOM");
-
-	private final String event;
+enum class EventEnums(
+    private val event: String
+) {
+    ROOM("ROOM")
 }

@@ -1,20 +1,23 @@
-package com.back.motionit.domain.challenge.comment.moderation;
+package com.back.motionit.domain.challenge.comment.moderation
 
-import org.springframework.stereotype.Component;
-
-import com.back.motionit.global.error.code.CommentErrorCode;
-import com.back.motionit.global.error.exception.BusinessException;
+import com.back.motionit.global.error.code.CommentErrorCode
+import com.back.motionit.global.error.exception.BusinessException
+import org.springframework.stereotype.Component
 
 @Component
-public class CommentModeration {
+class CommentModeration {
 
-	public void assertClean(String content) {
-		KeywordFilter.Decision decision = KeywordFilter.decide(content);
+    fun assertClean(content: String) {
+        when (KeywordFilter.decide(content)) {
+            KeywordFilter.Decision.BLOCK ->
+                throw BusinessException(CommentErrorCode.INAPPROPRIATE_CONTENT_BLOCK)
 
-		switch (decision) {
-			case BLOCK -> throw new BusinessException(CommentErrorCode.INAPPROPRIATE_CONTENT_BLOCK);
-			case WARN -> throw new BusinessException(CommentErrorCode.INAPPROPRIATE_CONTENT_WARN);
-			case ALLOW -> { /* 통과 */ }
-		}
-	}
+            KeywordFilter.Decision.WARN ->
+                throw BusinessException(CommentErrorCode.INAPPROPRIATE_CONTENT_WARN)
+
+            KeywordFilter.Decision.ALLOW -> {
+
+            }
+        }
+    }
 }
