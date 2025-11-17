@@ -2,6 +2,7 @@ package com.back.motionit.domain.challenge.missionstatus.controller
 
 import com.back.motionit.domain.challenge.mission.api.response.ChallengeMissionStatusHttp
 import com.back.motionit.domain.challenge.mission.dto.ChallengeMissionCompleteRequest
+import com.back.motionit.domain.challenge.mission.entity.ChallengeMissionStatus
 import com.back.motionit.domain.challenge.mission.repository.ChallengeMissionStatusRepository
 import com.back.motionit.domain.challenge.participant.entity.ChallengeParticipant
 import com.back.motionit.domain.challenge.participant.repository.ChallengeParticipantRepository
@@ -10,7 +11,6 @@ import com.back.motionit.domain.challenge.room.repository.ChallengeRoomRepositor
 import com.back.motionit.domain.challenge.video.entity.ChallengeVideo
 import com.back.motionit.domain.challenge.video.repository.ChallengeVideoRepository
 import com.back.motionit.domain.user.entity.User
-import com.back.motionit.factory.ChallengeMissionStatusFactory.fakeMission
 import com.back.motionit.factory.ChallengeParticipantFactory.fakeParticipant
 import com.back.motionit.factory.ChallengeRoomFactory.fakeChallengeRoom
 import com.back.motionit.factory.ChallengeVideoFactory.fakeChallengeVideo
@@ -28,8 +28,11 @@ import org.springframework.security.core.authority.AuthorityUtils
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-import org.springframework.test.web.servlet.result.MockMvcResultHandlers
-import org.springframework.test.web.servlet.result.MockMvcResultMatchers
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.result.MockMvcResultHandlers.print
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.time.LocalDate
 
 @SecuredIntegrationTest
@@ -58,34 +61,30 @@ class ChallengeMissionsStatusControllerTest : BaseIntegrationTest() {
     private lateinit var room: ChallengeRoom
     private lateinit var participant: ChallengeParticipant
     private lateinit var video: ChallengeVideo
-    private lateinit var today: LocalDate
     private lateinit var user: User
+    private val today: LocalDate = LocalDate.now()
 
     private lateinit var securityUser: SecurityUser
     private lateinit var authentication: UsernamePasswordAuthenticationToken
 
     @BeforeEach
     fun setUp() {
-        // 기본 사용자 및 데이터 구성
+        // 사용자 생성
         user = userHelper.createUser()
+
+        // 방 & 참가자 & 영상 생성
         room = challengeRoomRepository.save(fakeChallengeRoom(user, 5))
-        participant = challengeParticipantRepository.save(
-            fakeParticipant(user, room)
-        )
+        participant = challengeParticipantRepository.save(fakeParticipant(user, room))
         video = challengeVideoRepository.save(fakeChallengeVideo(user, room))
-        today = LocalDate.now()
 
-        challengeMissionStatusRepository.save(
-            fakeMission(
-                participant
-            )
-        )
+        // 오늘자 미션 1개 생성
+        challengeMissionStatusRepository.save(ChallengeMissionStatus.create(participant, today))
 
-        // ChallengeRoomControllerTest와 동일한 인증 세팅
+        // SecurityContext 인증 설정
         val authorities = AuthorityUtils.createAuthorityList("ROLE_USER")
         securityUser = SecurityUser(user.id!!, user.password!!, user.nickname, authorities)
-        authentication =
-            UsernamePasswordAuthenticationToken(securityUser, null, securityUser.authorities)
+        authentication = UsernamePasswordAuthenticationToken(securityUser, null, authorities)
+
         SecurityContextHolder.getContext().authentication = authentication
     }
 
@@ -100,17 +99,17 @@ class ChallengeMissionsStatusControllerTest : BaseIntegrationTest() {
         val request = ChallengeMissionCompleteRequest(video.id!!)
 
         mvc.perform(
-            MockMvcRequestBuilders.post("/api/v1/challenge/rooms/{roomId}/missions/complete", room.id)
+            post("/api/v1/challenge/rooms/{roomId}/missions/complete", room.id)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
         )
-            .andExpect(MockMvcResultMatchers.status().isOk())
+            .andExpect(status().isOk())
             .andExpect(
-                MockMvcResultMatchers.jsonPath("$.msg")
+                jsonPath("$.msg")
                     .value(ChallengeMissionStatusHttp.MISSION_COMPLETE_SUCCESS_MESSAGE)
             )
-            .andExpect(MockMvcResultMatchers.jsonPath("$.data.completed").value(true))
-            .andDo(MockMvcResultHandlers.print())
+            .andExpect(jsonPath("$.data.completed").value(true))
+            .andDo(print())
     }
 
     @Test
@@ -118,7 +117,7 @@ class ChallengeMissionsStatusControllerTest : BaseIntegrationTest() {
     fun completeMission_alreadyCompleted() {
         val mission = challengeMissionStatusRepository
             .findByParticipantIdAndMissionDate(participant.id!!, today)
-
+        requireNotNull(mission) { "TEST SETUP FAILED: mission must not be null" }
 
         assertNotNull(mission, "테스트 미션 초기화 실패.")
 
@@ -128,15 +127,15 @@ class ChallengeMissionsStatusControllerTest : BaseIntegrationTest() {
         val request = ChallengeMissionCompleteRequest(video.id!!)
 
         mvc.perform(
-            MockMvcRequestBuilders.post("/api/v1/challenge/rooms/{roomId}/missions/complete", room.id)
+            post("/api/v1/challenge/rooms/{roomId}/missions/complete", room.id)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
         )
-            .andExpect(MockMvcResultMatchers.status().is4xxClientError())
+            .andExpect(status().is4xxClientError())
             .andExpect(
-                MockMvcResultMatchers.jsonPath("$.msg").value(ChallengeMissionErrorCode.ALREADY_COMPLETED.message)
+                jsonPath("$.msg").value(ChallengeMissionErrorCode.ALREADY_COMPLETED.message)
             )
-            .andDo(MockMvcResultHandlers.print())
+            .andDo(print())
     }
 
     @DisplayName("GET /rooms/{roomId}/missions/personal/today - 개인 오늘 미션 조회 성공")
@@ -146,43 +145,43 @@ class ChallengeMissionsStatusControllerTest : BaseIntegrationTest() {
             MockMvcRequestBuilders.get("/api/v1/challenge/rooms/{roomId}/missions/personal/today", room.id)
                 .accept(MediaType.APPLICATION_JSON)
         )
-            .andExpect(MockMvcResultMatchers.status().isOk())
+            .andExpect(status().isOk())
             .andExpect(
-                MockMvcResultMatchers.jsonPath("$.msg")
+                jsonPath("$.msg")
                     .value(ChallengeMissionStatusHttp.GET_TODAY_PARTICIPANT_SUCCESS_MESSAGE)
             )
-            .andExpect(MockMvcResultMatchers.jsonPath("$.data.participantId").value(participant.id))
-            .andDo(MockMvcResultHandlers.print())
+            .andExpect(jsonPath("$.data.participantId").value(participant.id))
+            .andDo(print())
     }
 
     @DisplayName("GET /rooms/{roomId}/missions/today - 방 전체 오늘의 미션 조회 성공")
     @Test
     fun todayMissionByRoom_success() {
         mvc.perform(
-            MockMvcRequestBuilders.get("/api/v1/challenge/rooms/{roomId}/missions/today", room.id)
+            get("/api/v1/challenge/rooms/{roomId}/missions/today", room.id)
                 .accept(MediaType.APPLICATION_JSON)
         )
-            .andExpect(MockMvcResultMatchers.status().isOk())
+            .andExpect(status().isOk())
             .andExpect(
-                MockMvcResultMatchers.jsonPath("$.msg").value(ChallengeMissionStatusHttp.GET_TODAY_SUCCESS_MESSAGE)
+                jsonPath("$.msg").value(ChallengeMissionStatusHttp.GET_TODAY_SUCCESS_MESSAGE)
             )
-            .andExpect(MockMvcResultMatchers.jsonPath("$.data").isArray())
-            .andDo(MockMvcResultHandlers.print())
+            .andExpect(jsonPath("$.data").isArray())
+            .andDo(print())
     }
 
     @DisplayName("GET /rooms/{roomId}/missions/personal/history - 개인 미션 히스토리 조회 성공")
     @Test
     fun missionHistory_success() {
         mvc.perform(
-            MockMvcRequestBuilders.get("/api/v1/challenge/rooms/{roomId}/missions/personal/history", room.id)
+            get("/api/v1/challenge/rooms/{roomId}/missions/personal/history", room.id)
                 .accept(MediaType.APPLICATION_JSON)
         )
-            .andExpect(MockMvcResultMatchers.status().isOk())
+            .andExpect(status().isOk())
             .andExpect(
-                MockMvcResultMatchers.jsonPath("$.msg")
+                jsonPath("$.msg")
                     .value(ChallengeMissionStatusHttp.GET_MISSION_HISTORY_SUCCESS_MESSAGE)
             )
-            .andExpect(MockMvcResultMatchers.jsonPath("$.data").isArray())
-            .andDo(MockMvcResultHandlers.print())
+            .andExpect(jsonPath("$.data").isArray())
+            .andDo(print())
     }
 }
