@@ -83,9 +83,9 @@ docker run -d \
   --restart unless-stopped \
   --network motionit-network \
   -p ${NEW_PORT}:8080 \
+  -v /home/ubuntu/application-prod.yml:/app/application-prod.yml:ro \
   -v /home/ubuntu/aws_motionit_private_key.pem:/app/config/aws_motionit_private_key.pem:ro \
   -e SPRING_PROFILES_ACTIVE=prod \
-  -e SPRING_CONFIG_ADDITIONAL_LOCATION=file:/app/application-prod.yml \
   -e DATABASE_URL="${DATABASE_URL}" \
   -e DB_USERNAME="${DB_USERNAME}" \
   -e DB_PASSWORD="${DB_PASSWORD}" \
