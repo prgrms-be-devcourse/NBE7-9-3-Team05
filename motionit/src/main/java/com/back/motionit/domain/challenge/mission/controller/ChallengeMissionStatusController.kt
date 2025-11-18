@@ -23,7 +23,7 @@ class ChallengeMissionStatusController(
 
     @GetMapping("/ai-summary")
     override fun generateAiSummary(@PathVariable roomId: Long): ResponseData<String> {
-        val actor = requestContext.getActor()
+        val actor = requestContext.actor
         val message = challengeMissionStatusService.generateAiSummary(roomId, actor.id!!)
         return success(
             "AI 응원 메시지 조회 완료",
@@ -35,7 +35,7 @@ class ChallengeMissionStatusController(
     override fun completeMission(
         @PathVariable("roomId") roomId: Long
     ): ResponseData<ChallengeMissionStatusResponse> {
-        val actor = requestContext.getActor()
+        val actor = requestContext.actor
         // 방 참여자가 아닐경우 API 접근 차단
         challengeAuthValidator.validateActiveParticipant(actor.id!!, roomId)
 
@@ -53,7 +53,7 @@ class ChallengeMissionStatusController(
     override fun getTodayMissionByRoom(
         @PathVariable("roomId") roomId: Long
     ): ResponseData<List<ChallengeMissionStatusResponse>> {
-        val actor = requestContext.getActor()
+        val actor = requestContext.actor
         // 방 참여자가 아닐경우 API 접근 차단
         challengeAuthValidator.validateActiveParticipant(actor.id!!, roomId)
 
@@ -73,7 +73,7 @@ class ChallengeMissionStatusController(
     override fun getTodayMissionStatus(
         @PathVariable("roomId") roomId: Long
     ): ResponseData<ChallengeMissionStatusResponse> {
-        val actor = requestContext.getActor()
+        val actor = requestContext.actor
         // 방 참여자가 아닐경우 API 접근 차단
         challengeAuthValidator.validateActiveParticipant(actor.id!!, roomId)
 
@@ -88,7 +88,7 @@ class ChallengeMissionStatusController(
     override fun getMissionHistory(
         @PathVariable("roomId") roomId: Long
     ): ResponseData<List<ChallengeMissionStatusResponse>> {
-        val actor = requestContext.getActor()
+        val actor = requestContext.actor
         // 방 참여자가 아닐경우 API 접근 차단
         challengeAuthValidator.validateActiveParticipant(actor.id!!, roomId)
 

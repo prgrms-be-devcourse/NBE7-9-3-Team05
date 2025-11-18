@@ -1,120 +1,102 @@
-package com.back.motionit.global.request;
+package com.back.motionit.global.request
 
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Optional;
-
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Component;
-
-import com.back.motionit.domain.user.entity.User;
-import com.back.motionit.global.error.code.AuthErrorCode;
-import com.back.motionit.global.error.exception.BusinessException;
-import com.back.motionit.security.SecurityUser;
-
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
+import com.back.motionit.domain.user.entity.User
+import com.back.motionit.global.error.code.AuthErrorCode
+import com.back.motionit.global.error.exception.BusinessException
+import com.back.motionit.security.SecurityUser
+import jakarta.servlet.http.Cookie
+import jakarta.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletResponse
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.security.core.Authentication
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.stereotype.Component
 
 @Component
-@RequiredArgsConstructor
-public class RequestContext {
+class RequestContext(
+    private val request: HttpServletRequest,
+    private val response: HttpServletResponse,
 
-	private final HttpServletRequest request;
-	private final HttpServletResponse response;
+    @Value("\${cookie.domain:localhost}")
+    private val cookieDomain: String,
 
-	@Value("${cookie.domain:localhost}")
-	private String cookieDomain;
-	@Value("${jwt.refresh-token-expiration:1209600}")
-	private long refreshTokenExpiration;
-	@Value("${jwt.access-token-expiration:3600}")
-	private long accessTokenExpiration;
+    @Value("\${jwt.refresh-token-expiration:1209600}")
+    private val refreshTokenExpiration: Long,
 
-	public User getActor() {
+    @Value("\${jwt.access-token-expiration:3600}")
+    private val accessTokenExpiration: Long
+) {
 
-		return Optional.ofNullable(
-				SecurityContextHolder
-					.getContext()
-					.getAuthentication()
-			)
-			.map(Authentication::getPrincipal)
-			.filter(principal -> principal instanceof SecurityUser)
-			.map(principal -> (SecurityUser)principal)
-			.map(securityUser -> new User(
-				securityUser.getId(),
-				securityUser.getNickname()
-			))
-			.orElseThrow(() -> new BusinessException(AuthErrorCode.UNAUTHORIZED));
-	}
+    val actor: User
+        get() {
+            val auth: Authentication? = SecurityContextHolder.getContext().authentication
+            val principal = auth?.principal
 
-	public void setHeader(String name, String value) {
-		response.setHeader(name, value);
-	}
+            if (principal is SecurityUser) {
+                return User(principal.id, principal.nickname)
+            }
+            throw BusinessException(AuthErrorCode.UNAUTHORIZED)
+        }
 
-	public String getHeader(String name, String defaultValue) {
-		return Optional
-			.ofNullable(request.getHeader(name))
-			.filter(headerValue -> !headerValue.isBlank())
-			.orElse(defaultValue);
-	}
+    fun setHeader(name: String, value: String) {
+        response.setHeader(name, value)
+    }
 
-	public String getCookieValue(String name, String defaultValue) {
-		return Optional
-			.ofNullable(request.getCookies())
-			.flatMap(
-				cookies ->
-					Arrays.stream(cookies)
-						.filter(cookie -> cookie.getName().equals(name))
-						.map(Cookie::getValue)
-						.filter(value -> !value.isBlank())
-						.findFirst()
-			)
-			.orElse(defaultValue);
-	}
+    fun getHeader(name: String, defaultValue: String): String {
+        val headerValue = request.getHeader(name)
+        return if (headerValue != null && headerValue.isNotBlank()) headerValue else defaultValue
+    }
 
-	public void setCookie(String name, String value) {
-		if (value == null) {
-			value = "";
-		}
+    fun getCookieValue(name: String, defaultValue: String): String {
+        val cookies = request.cookies ?: return defaultValue
 
-		Cookie cookie = new Cookie(name, value);
-		cookie.setPath("/");
-		cookie.setHttpOnly(true);
+        for (cookie in cookies) {
+            if (cookie.name == name) {
+                val value = cookie.value
+                if (value != null && value.isNotBlank()) {
+                    return value
+                }
+                break
+            }
+        }
 
-		boolean isLocalhostDomain = cookieDomain == null
-			|| cookieDomain.isBlank()
-			|| "localhost".equalsIgnoreCase(cookieDomain)
-			|| "127.0.0.1".equals(cookieDomain);
+        return defaultValue
+    }
 
-		if (!isLocalhostDomain) {
-			cookie.setDomain(cookieDomain);
-		}
+    fun setCookie(name: String, value: String?) {
+        val cookieValue = value ?: ""
 
-		boolean secureRequest = request.isSecure();
-		cookie.setSecure(secureRequest && !isLocalhostDomain);
-		cookie.setAttribute("SameSite", isLocalhostDomain ? "Lax" : "Strict");
+        val cookie = Cookie(name, cookieValue)
+        cookie.path = "/"
+        cookie.isHttpOnly = true
 
-		if (value.isBlank()) {
-			cookie.setMaxAge(0);
-		} else {
-			if ("accessToken".equals(name)) {
-				cookie.setMaxAge((int)accessTokenExpiration);
-			} else if ("refreshToken".equals(name)) {
-				cookie.setMaxAge((int)refreshTokenExpiration);
-			}
-		}
+        val isLocalhostDomain =
+            cookieDomain.isBlank() ||
+                    cookieDomain.equals("localhost", ignoreCase = true) ||
+                    cookieDomain == "127.0.0.1"
 
-		response.addCookie(cookie);
-	}
+        if (!isLocalhostDomain) {
+            cookie.domain = cookieDomain
+        }
 
-	public void deleteCookie(String name) {
-		setCookie(name, null);
-	}
+        cookie.secure = request.isSecure && !isLocalhostDomain
+        cookie.setAttribute("SameSite", if (isLocalhostDomain) "Lax" else "Strict")
 
-	public void sendRedirect(String url) throws IOException {
-		response.sendRedirect(url);
-	}
+        cookie.maxAge = when {
+            cookieValue.isBlank() -> 0
+            name == "accessToken" -> accessTokenExpiration.toInt()
+            name == "refreshToken" -> refreshTokenExpiration.toInt()
+            else -> -1
+        }
+
+        response.addCookie(cookie)
+    }
+
+    fun deleteCookie(name: String) {
+        setCookie(name, null)
+    }
+
+    fun sendRedirect(url: String) {
+        response.sendRedirect(url)
+    }
 }
