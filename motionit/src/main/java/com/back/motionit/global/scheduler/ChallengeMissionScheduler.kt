@@ -1,48 +1,53 @@
-package com.back.motionit.global.scheduler;
+package com.back.motionit.global.scheduler
 
-import java.time.LocalDate;
-import java.util.List;
+import com.back.motionit.domain.challenge.mission.entity.ChallengeMissionStatus.Companion.create
+import com.back.motionit.domain.challenge.mission.repository.ChallengeMissionStatusRepository
+import com.back.motionit.domain.challenge.participant.repository.ChallengeParticipantRepository
+import io.github.oshai.kotlinlogging.KotlinLogging
+import org.springframework.dao.DataIntegrityViolationException
+import org.springframework.scheduling.annotation.Scheduled
+import org.springframework.stereotype.Component
+import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDate
 
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.back.motionit.domain.challenge.mission.entity.ChallengeMissionStatus;
-import com.back.motionit.domain.challenge.mission.repository.ChallengeMissionStatusRepository;
-import com.back.motionit.domain.challenge.participant.entity.ChallengeParticipant;
-import com.back.motionit.domain.challenge.participant.repository.ChallengeParticipantRepository;
-
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
-@Slf4j
 @Component
-@RequiredArgsConstructor
-public class ChallengeMissionScheduler {
+class ChallengeMissionScheduler(
+    private val challengeMissionStatusRepository: ChallengeMissionStatusRepository,
+    private val challengeParticipantRepository: ChallengeParticipantRepository,
+) {
+    private val log = KotlinLogging.logger {}
 
-	private final ChallengeMissionStatusRepository challengeMissionStatusRepository;
-	private final ChallengeParticipantRepository challengeParticipantRepository;
+    @Scheduled(cron = "0 0 6 * * *", zone = "Asia/Seoul")
+    @Transactional
+    fun initializeChallengeDailyMissions() {
+        val today = LocalDate.now()
+        log.info { "[Scheduler] $today 운동방 미션 초기화 시작" }
 
-	@Scheduled(cron = "0 0 6 * * *", zone = "Asia/Seoul")
-	@Transactional
-	public void initializeChallengeDailyMissions() {
-		LocalDate today = LocalDate.now();
-		log.info("[Scheduler] {} 운동방 미션 초기화 시작", today);
+        val participants = challengeParticipantRepository.findAll()
 
-		List<ChallengeParticipant> participants = challengeParticipantRepository.findAll();
-		for (ChallengeParticipant participant : participants) {
-			try {
-				boolean exists = challengeMissionStatusRepository.existsByParticipantIdAndMissionDate(
-					participant.getId(), today);
-				if (!exists) {
-					challengeMissionStatusRepository.save(ChallengeMissionStatus.create(participant, today));
-				}
-			} catch (DataIntegrityViolationException e) {
-				log.warn("Duplicate mission ignored: participant={} date={}", participant.getId(), today);
-			}
-		}
+        participants.forEach { participant ->
+            val participantId = participant.id ?: return@forEach
 
-		log.info("[Scheduler] {} 날짜 미션 초기화 완료 ({}명)", today, participants.size());
-	}
+            runCatching {
+                val exists = challengeMissionStatusRepository.existsByParticipantIdAndMissionDate(
+                    participantId, today
+                )
+
+                if (!exists) {
+                    challengeMissionStatusRepository.save(create(participant, today))
+                }
+            }.onFailure { e ->
+                when (e) {
+                    is DataIntegrityViolationException -> {
+                        log.warn(e) {
+                            "Duplicate mission ignored: participant=$participantId date=$today"
+                        }
+                    }
+                    else -> throw e
+                }
+            }
+        }
+
+        log.info { "[Scheduler] $today 날짜 미션 초기화 완료 (${participants.size}명)" }
+    }
 }
