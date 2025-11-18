@@ -2,7 +2,6 @@ package com.back.motionit.domain.challenge.participant.dto
 
 import com.back.motionit.domain.challenge.participant.entity.ChallengeParticipant
 
-@JvmRecord
 data class ChallengeParticipantResponse(
     val userId: Long,
     val roomId: Long,
