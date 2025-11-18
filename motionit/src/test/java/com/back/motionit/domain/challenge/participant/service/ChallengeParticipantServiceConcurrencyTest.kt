@@ -8,6 +8,7 @@ import com.back.motionit.domain.challenge.video.service.ChallengeVideoService
 import com.back.motionit.domain.user.entity.LoginType
 import com.back.motionit.domain.user.entity.User
 import com.back.motionit.domain.user.repository.UserRepository
+import com.back.motionit.global.config.JpaConfig
 import com.back.motionit.global.event.EventPublisher
 import com.back.motionit.global.service.AwsCdnSignService
 import com.back.motionit.global.service.AwsS3Service
@@ -30,7 +31,7 @@ import java.util.concurrent.Executors
 @DataJpaTest
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY) // H2 사용
-@Import(ChallengeParticipantService::class)
+@Import(ChallengeParticipantService::class, JpaConfig::class)
 class ChallengeParticipantServiceConcurrencyTest {
 
     @Autowired

@@ -148,11 +148,8 @@ class ChallengeRoomService(
 
     @Transactional
     fun getRoom(roomId: Long): GetRoomResponse {
-        val room = challengeRoomRepository.findWithVideosById(roomId)
-
-        if (room == null) {
-            throw BusinessException(ChallengeRoomErrorCode.NOT_FOUND_ROOM)
-        }
+        val room = challengeRoomRepository.findDetailById(roomId)
+            ?: throw BusinessException(ChallengeRoomErrorCode.NOT_FOUND_ROOM)
 
         return mapToGetRoomResponse(room)
     }
