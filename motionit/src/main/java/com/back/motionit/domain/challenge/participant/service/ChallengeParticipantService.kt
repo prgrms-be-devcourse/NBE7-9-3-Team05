@@ -35,24 +35,23 @@ class ChallengeParticipantService(
             .orElseThrow{ BusinessException(ChallengeParticipantErrorCode.NOT_FOUND_USER) }
 
         val challengeRoom = challengeRoomRepository.findByIdWithLock(roomId)
+            ?: throw BusinessException(ChallengeParticipantErrorCode.CANNOT_FIND_CHALLENGE_ROOM)
 
-        if (challengeRoom == null) {
-            throw BusinessException(ChallengeParticipantErrorCode.CANNOT_FIND_CHALLENGE_ROOM)
-        }
 
-        // 이미 참여중인 사용자인지 확인
-        // TODO: !!는 전환단계에서만 유지, user/room 전환 후 리팩터링 필요
-        val alreadyJoined = challengeParticipantRepository
-            .existsActiveParticipant(user.id!!, challengeRoom.id!!)
-        if (alreadyJoined) {
-            throw BusinessException(ChallengeParticipantErrorCode.ALREADY_JOINED)
-        }
-
-        // 챌린지 룸의 현재 참가자 수가 최대 인원 수에 도달했는지 확인
-        val currentParticipants = challengeParticipantRepository.countByChallengeRoomAndQuitedFalse(challengeRoom)
-        if (currentParticipants >= challengeRoom.capacity) {
-            throw BusinessException(ChallengeParticipantErrorCode.FULL_JOINED_ROOM)
-        }
+//
+//        // 이미 참여중인 사용자인지 확인
+//        // TODO: !!는 전환단계에서만 유지, user/room 전환 후 리팩터링 필요
+//        val alreadyJoined = challengeParticipantRepository
+//            .existsActiveParticipant(user.id!!, challengeRoom.id!!)
+//        if (alreadyJoined) {
+//            throw BusinessException(ChallengeParticipantErrorCode.ALREADY_JOINED)
+//        }
+//
+//        // 챌린지 룸의 현재 참가자 수가 최대 인원 수에 도달했는지 확인
+//        val currentParticipants = challengeParticipantRepository.countByChallengeRoomAndQuitedFalse(challengeRoom)
+//        if (currentParticipants >= challengeRoom.capacity) {
+//            throw BusinessException(ChallengeParticipantErrorCode.FULL_JOINED_ROOM)
+//        }
 
         val participant = ChallengeParticipant(user, challengeRoom, role)
         challengeParticipantRepository.save(participant)
