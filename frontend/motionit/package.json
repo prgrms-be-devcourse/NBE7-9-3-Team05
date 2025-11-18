@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@stomp/stompjs": "^7.2.1",
+    "@vercel/analytics": "^1.5.0",
     "axios": "^1.12.2",
     "lucide-react": "^0.546.0",
     "next": "15.5.5",
