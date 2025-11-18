@@ -56,14 +56,7 @@ class ChallengeParticipantService(
         val user = userRepository.findById(userId)
             .orElseThrow{ BusinessException(ChallengeParticipantErrorCode.NOT_FOUND_USER) }
 
-        val challengeRoom = challengeRoomRepository.findById(challengeRoomId)
-            .orElseThrow{ BusinessException(ChallengeParticipantErrorCode.CANNOT_FIND_CHALLENGE_ROOM) }
-
-        if (challengeRoom == null) {
-            throw BusinessException(ChallengeParticipantErrorCode.CANNOT_FIND_CHALLENGE_ROOM)
-        }
-
-        val participant = challengeParticipantRepository.findByUserAndChallengeRoom(user, challengeRoom)
+        val participant = challengeParticipantRepository.findActiveParticipant(userId, challengeRoomId)
             ?: throw BusinessException(ChallengeParticipantErrorCode.NO_PARTICIPANT_IN_ROOM)
 
         // Soft delete
