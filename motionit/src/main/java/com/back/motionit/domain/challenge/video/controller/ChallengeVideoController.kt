@@ -22,7 +22,7 @@ class ChallengeVideoController(
         @PathVariable("roomId") roomId: Long,
         @RequestBody request: @Valid ChallengeVideoUploadRequest
     ): ResponseData<ChallengeVideoResponse> {
-        val actor = requestContext.getActor()
+        val actor = requestContext.actor
 
         challengeVideoService.requestUploadChallengeVideo(
             actor.id!!, roomId, request.youtubeUrl
@@ -38,7 +38,7 @@ class ChallengeVideoController(
         @PathVariable("roomId") roomId: Long
     ): ResponseData<List<ChallengeVideoResponse>> {
 
-        val actor = requestContext.getActor()
+        val actor = requestContext.actor
 
         val videos = challengeVideoService
             .getTodayMissionVideos(actor.id!!, roomId)
@@ -56,7 +56,7 @@ class ChallengeVideoController(
         @PathVariable("videoId") videoId: Long
     ): ResponseData<Void> {
 
-        val actor = requestContext.getActor()
+        val actor = requestContext.actor
 
         challengeVideoService.deleteVideoByUser(actor.id!!, roomId, videoId)
 

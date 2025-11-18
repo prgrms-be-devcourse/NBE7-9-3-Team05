@@ -72,8 +72,8 @@ class LocalAuthService(
 
     @Transactional
     fun logout() {
-        val refreshToken = requestContext.getCookieValue("refreshToken", null)
-        if (refreshToken.isNullOrBlank()) {
+        val refreshToken = requestContext.getCookieValue("refreshToken", "")
+        if (refreshToken.isBlank()) {
             throw BusinessException(AuthErrorCode.REFRESH_TOKEN_REQUIRED)
         }
 

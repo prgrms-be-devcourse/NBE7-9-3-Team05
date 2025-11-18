@@ -14,7 +14,6 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
-import org.mockito.ArgumentMatchers
 import org.mockito.ArgumentMatchers.anyString
 import org.mockito.BDDMockito.given
 import org.mockito.InjectMocks
@@ -22,6 +21,7 @@ import org.mockito.Mock
 import org.mockito.Mockito.verify
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any
+import org.mockito.kotlin.eq
 import org.springframework.security.crypto.password.PasswordEncoder
 import java.util.*
 
@@ -109,7 +109,7 @@ class LocalAuthServiceTest {
         val user = User(1L, "테스터")
         user.updateRefreshToken(refreshToken)
 
-        given(requestContext.getCookieValue(ArgumentMatchers.eq("refreshToken"), ArgumentMatchers.any()))
+        given(requestContext.getCookieValue(eq("refreshToken"), any()))
             .willReturn(refreshToken)
         given(userRepository.findByRefreshToken(refreshToken)).willReturn(Optional.of(user))
 
@@ -123,8 +123,8 @@ class LocalAuthServiceTest {
     @Test
     @DisplayName("refreshToken 쿠키가 없으면 예외 발생")
     fun logout_NoRefreshToken() {
-        given(requestContext.getCookieValue(ArgumentMatchers.eq("refreshToken"), ArgumentMatchers.any()))
-            .willReturn(null)
+        given(requestContext.getCookieValue(eq("refreshToken"), any()))
+            .willReturn("")
 
         val ex = assertThrows(BusinessException::class.java) { localAuthService.logout() }
         assertEquals(AuthErrorCode.REFRESH_TOKEN_REQUIRED, ex.errorCode)
