@@ -1,11 +1,13 @@
 package com.back.motionit.domain.home.home.controller
 
 import io.swagger.v3.oas.annotations.tags.Tag
+import org.springframework.context.annotation.Profile
 import org.springframework.http.MediaType
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RestController
 import java.net.InetAddress
 
+@Profile("!prod")
 @RestController
 @Tag(name = "Home", description = "홈 컨트롤러")
 class HomeController {
@@ -15,13 +17,13 @@ class HomeController {
 
         return """
 			<h1>Welcome to Rest1</h1>
-			<p>Server IP Address: %s</p>
-			<p>Server Host Name: %s</p>
+			<p>Server IP Address: ${localhost.hostAddress}</p>
+			<p>Server Host Name: ${localhost.hostName}</p>
 			<div>
 				<a href="swagger-ui/index.html">API 문서로 이동</a>
 			</div>
 			
-			""".trimIndent().formatted(localhost.hostAddress, localhost.hostName)
+			"""
     }
 
     @GetMapping(value = ["test/fetchData"], produces = [MediaType.TEXT_HTML_VALUE])
@@ -36,5 +38,5 @@ class HomeController {
 				.then(data => console.log(data))
 			</script>
 			
-			""".trimIndent()
+			"""
 }
