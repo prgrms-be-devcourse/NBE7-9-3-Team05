@@ -4,6 +4,8 @@ import java.text.Normalizer
 import java.util.*
 
 object NormLite {
+
+    // 초성 자모(ᄀ, ᄂ ...) → 호환 자모(ㄱ, ㄴ ...)
     private val JAMO_TO_COMPAT: Map<Int, Char> = mapOf(
         0x1100 to 'ㄱ', // ᄀ -> ㄱ
         0x1101 to 'ㄲ', // ᄁ -> ㄲ
@@ -26,8 +28,13 @@ object NormLite {
         0x1112 to 'ㅎ', // ᄒ -> ㅎ
     )
 
+    private val ZERO_WIDTH_REGEX = Regex("[\\u200B-\\u200D\\uFEFF]")
+    private val BETWEEN_HANGUL_MASK_REGEX = Regex("(?<=[가-힣])[1lI|]+(?=[가-힣])")
+    private val SEPARATORS_REGEX = Regex("[._\\-/,\\s]+")
+    private val REPEAT_CHAR_REGEX = Regex("(.)\\1{3,}")
+
     private fun toCompatJamo(word: String): String {
-        val sb = StringBuilder()
+        val sb = StringBuilder(word.length)
         var i = 0
         while (i < word.length) {
             val cp = word.codePointAt(i)
@@ -43,23 +50,28 @@ object NormLite {
     }
 
     @JvmStatic
-	fun normalize(raw: String?): String {
-        if (raw == null) {
+    fun normalize(raw: String?): String {
+        if (raw.isNullOrBlank()) {
             return ""
         }
-        var norm = Normalizer.normalize(raw, Normalizer.Form.NFKC).lowercase(Locale.getDefault())
 
-        norm = norm.replace("[\\u200B-\\u200D\\uFEFF]".toRegex(), "")
+        var norm = Normalizer
+            .normalize(raw, Normalizer.Form.NFKC)
+            .lowercase(Locale.getDefault())
 
-        //초성 자모(ᄉ,ᄇ 등)를 호환 자모(ㅅ,ㅂ)로 되돌리기
+        // 제로폭 문자 제거
+        norm = ZERO_WIDTH_REGEX.replace(norm, "")
+
         norm = toCompatJamo(norm)
 
-        norm = norm.replace("(?<=[가-힣])[1lI|]+(?=[가-힣])".toRegex(), "")
+        norm = BETWEEN_HANGUL_MASK_REGEX.replace(norm, "")
 
-        norm = norm.replace("[._\\-/,\\s]+".toRegex(), "")
+        norm = SEPARATORS_REGEX.replace(norm, "")
 
-        norm = norm.replace("(.)\\1{3,}".toRegex(), "$1$1")
+        norm = REPEAT_CHAR_REGEX.replace(norm, "$1$1")
 
-        return norm.trim ()
+        return norm.trim()
     }
 }
+
+

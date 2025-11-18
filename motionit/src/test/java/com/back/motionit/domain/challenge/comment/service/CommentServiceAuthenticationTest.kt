@@ -52,7 +52,7 @@ class CommentServiceAuthenticationTest {
     lateinit var commentLikeRepository: CommentLikeRepository
 
     @Mock
-    lateinit var commentLikeService: CommentLikeService   // ✅ 새로 추가된 서비스 모킹
+    lateinit var commentLikeService: CommentLikeService
 
     @Mock
     lateinit var commentModeration: CommentModeration
@@ -63,7 +63,6 @@ class CommentServiceAuthenticationTest {
     @InjectMocks
     lateinit var commentService: CommentService
 
-    // 테스트 전역에서 사용할 mock/fixture
     private lateinit var mockRoom: ChallengeRoom
     private lateinit var author: User
     private lateinit var otherUser: User
@@ -74,13 +73,11 @@ class CommentServiceAuthenticationTest {
         author = User(USER_ID, "alice")
         otherUser = User(OTHER_USER_ID, "bob")
 
-        // 필요 테스트에서 호출되지 않아도 불필요 stubbing 예외가 나지 않도록 lenient 사용
         Mockito.lenient()
             .`when`(mockRoom.id)
             .thenReturn(ROOM_ID)
     }
 
-    // Comment 엔티티 id + 날짜 주입 유틸 (Reflection)
     private fun buildActiveComment(
         id: Long,
         room: ChallengeRoom,
@@ -111,10 +108,6 @@ class CommentServiceAuthenticationTest {
         @Test
         @DisplayName("방 존재 + 멤버십 OK → 댓글 생성 성공")
         fun create_success() {
-            // guard: 방 존재
-            Mockito.`when`(challengeRoomRepository.existsById(ROOM_ID))
-                .thenReturn(true)
-
             // 방, 사용자 조회
             Mockito.`when`(challengeRoomRepository.findById(ROOM_ID))
                 .thenReturn(Optional.of(mockRoom))
@@ -122,7 +115,7 @@ class CommentServiceAuthenticationTest {
             Mockito.`when`(userRepository.findById(USER_ID))
                 .thenReturn(Optional.of(author))
 
-            // 멤버십 통과 (반환값은 사용하지 않으므로 아무 Participant mock이면 됨)
+            // 멤버십 통과
             Mockito.`when`(
                 challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID)
             ).thenReturn(Mockito.mock(ChallengeParticipant::class.java))
@@ -154,13 +147,20 @@ class CommentServiceAuthenticationTest {
                 .assertClean("hello")
             Mockito.verify(challengeAuthValidator, Mockito.times(1))
                 .validateActiveParticipant(USER_ID, ROOM_ID)
+            Mockito.verify(challengeRoomRepository, Mockito.times(1))
+                .findById(ROOM_ID)
         }
 
         @Test
         @DisplayName("방 없음 → ROOM_NOT_FOUND")
         fun create_roomNotFound() {
-            Mockito.`when`(challengeRoomRepository.existsById(ROOM_ID))
-                .thenReturn(false)
+            // 멤버십 체크는 여전히 호출됨
+            Mockito.`when`(
+                challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID)
+            ).thenReturn(Mockito.mock(ChallengeParticipant::class.java))
+
+            Mockito.`when`(challengeRoomRepository.findById(ROOM_ID))
+                .thenReturn(Optional.empty())
 
             val ex = org.junit.jupiter.api.Assertions.assertThrows(
                 BusinessException::class.java,
@@ -172,13 +172,11 @@ class CommentServiceAuthenticationTest {
             assertThat<ErrorCode>(ex.errorCode)
                 .isEqualTo(CommentErrorCode.ROOM_NOT_FOUND)
 
+            Mockito.verify(challengeAuthValidator, Mockito.times(1))
+                .validateActiveParticipant(USER_ID, ROOM_ID)
             Mockito.verify(challengeRoomRepository, Mockito.times(1))
-                .existsById(ROOM_ID)
-            Mockito.verifyNoMoreInteractions(
-                commentRepository,
-                challengeAuthValidator,
-                commentModeration
-            )
+                .findById(ROOM_ID)
+            Mockito.verifyNoInteractions(commentRepository, commentModeration)
         }
     }
 
@@ -211,7 +209,6 @@ class CommentServiceAuthenticationTest {
             val page: Page<CommentRes> = commentService.list(ROOM_ID, USER_ID, 0, 20)
 
             assertThat(page.totalElements).isZero()
-            // 좋아요 조회는 아예 호출되지 않아야 함 → 이제 Service 기준
             Mockito.verifyNoInteractions(commentLikeService)
         }
 
@@ -242,7 +239,6 @@ class CommentServiceAuthenticationTest {
 
             val expectedIds = listOf(COMMENT_ID, COMMENT_ID + 1)
 
-            // (C) 실제 호출 인자와 정확히 일치하도록 스텁 → 이제 CommentLikeService 기준
             Mockito.`when`(
                 commentLikeService.findLikedCommentIdsSafely(
                     author,
@@ -256,8 +252,6 @@ class CommentServiceAuthenticationTest {
 
             Mockito.verify(commentLikeService, Mockito.times(1))
                 .findLikedCommentIdsSafely(author, expectedIds)
-
-            // 선택: liked 플래그까지 검증
             assertThat(page.content[0].liked).isTrue()
             assertThat(page.content[1].liked).isFalse()
         }
@@ -270,9 +264,6 @@ class CommentServiceAuthenticationTest {
         @Test
         @DisplayName("작성자 아님 → WRONG_ACCESS")
         fun edit_wrongAccess() {
-            Mockito.`when`(challengeRoomRepository.existsById(ROOM_ID))
-                .thenReturn(true)
-
             Mockito.`when`(
                 challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID)
             ).thenReturn(Mockito.mock(ChallengeParticipant::class.java))
@@ -301,16 +292,12 @@ class CommentServiceAuthenticationTest {
             assertThat<ErrorCode>(ex.errorCode)
                 .isEqualTo(CommentErrorCode.WRONG_ACCESS)
 
-            // 모더레이션은 호출되지 않아야 함
             Mockito.verifyNoInteractions(commentModeration)
         }
 
         @Test
         @DisplayName("성공 → 내용 변경 및 좋아요 여부 포함")
         fun edit_success() {
-            Mockito.`when`(challengeRoomRepository.existsById(ROOM_ID))
-                .thenReturn(true)
-
             Mockito.`when`(
                 challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID)
             ).thenReturn(Mockito.mock(ChallengeParticipant::class.java))
@@ -356,9 +343,6 @@ class CommentServiceAuthenticationTest {
         @Test
         @DisplayName("성공 → soft delete 및 좋아요 삭제 호출")
         fun delete_success() {
-            Mockito.`when`(challengeRoomRepository.existsById(ROOM_ID))
-                .thenReturn(true)
-
             Mockito.`when`(
                 challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID)
             ).thenReturn(Mockito.mock(ChallengeParticipant::class.java))
@@ -386,9 +370,6 @@ class CommentServiceAuthenticationTest {
         @Test
         @DisplayName("댓글 없음 → COMMENT_NOT_FOUND")
         fun delete_commentNotFound() {
-            Mockito.`when`(challengeRoomRepository.existsById(ROOM_ID))
-                .thenReturn(true)
-
             Mockito.`when`(
                 challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID)
             ).thenReturn(Mockito.mock(ChallengeParticipant::class.java))
@@ -410,7 +391,6 @@ class CommentServiceAuthenticationTest {
             assertThat<ErrorCode>(ex.errorCode)
                 .isEqualTo(CommentErrorCode.COMMENT_NOT_FOUND)
 
-            // 좋아요 삭제는 호출되면 안 됨
             Mockito.verifyNoInteractions(commentLikeRepository)
         }
     }

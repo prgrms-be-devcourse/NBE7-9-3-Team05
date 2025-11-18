@@ -62,13 +62,11 @@ class CommentServiceFilteringTest {
     @BeforeEach
     fun setUp() {
         mockRoom = mock(ChallengeRoom::class.java)
-        author = User(USER_ID, "alice")   // 기존 자바 테스트와 동일 가정
+        author = User(USER_ID, "alice")
 
-        // lenient: 방 id 조회가 안 쓰이는 테스트에서도 stubbing 예외 안 나게
         lenient().`when`(mockRoom.id).thenReturn(ROOM_ID)
     }
 
-    // 활성 댓글 빌더 (id 주입)
     private fun activeComment(
         id: Long,
         room: ChallengeRoom,
@@ -92,11 +90,11 @@ class CommentServiceFilteringTest {
         return comment
     }
 
-    // -------- 공통 가드 스텁 (CREATE용): 불필요 스텁 최소화 ----------
+    // CREATE용 가드 스텁
     private fun stubGuardsForCreateBasic() {
-        `when`(challengeRoomRepository.existsById(ROOM_ID)).thenReturn(true)
-        `when`(challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID))
-            .thenReturn(null as ChallengeParticipant?)
+        `when`(
+            challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID)
+        ).thenReturn(null as ChallengeParticipant?)
 
         @Suppress("UNCHECKED_CAST")
         val optionalRoom: Optional<ChallengeRoom?> =
@@ -109,18 +107,18 @@ class CommentServiceFilteringTest {
             .thenReturn(Optional.of(author))
     }
 
-    // -------- 공통 가드 스텁 (EDIT용): 불필요 스텁 최소화 ----------
+    // EDIT용 가드 스텁
     private fun stubGuardsForEditBasic(target: Comment) {
-        `when`(challengeRoomRepository.existsById(ROOM_ID)).thenReturn(true)
-        `when`(challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID))
-            .thenReturn(null as ChallengeParticipant?)
+        `when`(
+            challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID)
+        ).thenReturn(null as ChallengeParticipant?)
+
         `when`(
             commentRepository.findByIdAndChallengeRoom_IdAndDeletedAtIsNull(
                 COMMENT_ID,
                 ROOM_ID
             )
         ).thenReturn(Optional.of(target))
-        // like 조회는 ALLOW 성공 케이스에서만 사용 → 각 테스트에서 개별 스텁
     }
 
     // ------------------------ CREATE (필터링) ------------------------
@@ -129,10 +127,9 @@ class CommentServiceFilteringTest {
     @DisplayName("create: ALLOW → 저장 성공")
     fun create_allow_saves() {
         stubGuardsForCreateBasic()
-        // ALLOW
+
         doNothing().`when`(commentModeration).assertClean("정상 댓글")
 
-        // save 시 id 부여
         `when`(commentRepository.save(any(Comment::class.java))).thenAnswer { inv ->
             val saved = inv.getArgument<Comment>(0)
             val now = LocalDateTime.now()
@@ -189,10 +186,8 @@ class CommentServiceFilteringTest {
         val own = activeComment(COMMENT_ID, mockRoom, author, "old")
         stubGuardsForEditBasic(own)
 
-        // ALLOW
         doNothing().`when`(commentModeration).assertClean("new clean")
 
-        // 좋아요 여부/참조
         `when`(userRepository.getReferenceById(USER_ID)).thenReturn(author)
         `when`(commentLikeRepository.existsByCommentAndUser(own, author)).thenReturn(false)
 
@@ -218,10 +213,7 @@ class CommentServiceFilteringTest {
 
         assertThat(ex.errorCode).isEqualTo(CommentErrorCode.INAPPROPRIATE_CONTENT_WARN)
 
-
-        // ✅ 이렇게 "단독 호출"만 남겨
         verifyNoInteractions(commentLikeRepository)
-
         verifyNoInteractions(commentLikeService)
     }
 
@@ -240,11 +232,6 @@ class CommentServiceFilteringTest {
 
         assertThat(ex.errorCode).isEqualTo(CommentErrorCode.INAPPROPRIATE_CONTENT_BLOCK)
 
-        // ❌ 절대 이렇게 쓰면 안 됨:
-        // verify(commentLikeRepository, never())
-        //     .existsByCommentAndUser(any(), any())
-
-        // ✅ 이렇게만!
         verifyNoInteractions(commentLikeRepository)
         verifyNoInteractions(commentLikeService)
     }

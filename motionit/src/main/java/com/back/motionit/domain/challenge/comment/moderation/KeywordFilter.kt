@@ -5,12 +5,12 @@ object KeywordFilter {
     enum class Decision {
         ALLOW, WARN, BLOCK
     }
-    // 오탐 방지
+
+
     private val WHITELIST: List<String> = listOf(
         "시발점", "병신도", "꺼져가", "꺼져감", "보지말", "보지않", "보지못", "보지마", "자지말",
         "자지않", "자지못", "자지마", "자지러", "2018년",
         "Scunthorpe"
-
     )
 
     private val BLOCK: List<String> = listOf(
@@ -21,7 +21,7 @@ object KeywordFilter {
         "쌍놈", "썅", "좆같", "좆나", "좆밥", "좆", "미친년", "미친놈",
         "쓰레기같은", "창녀", "창년", "강간", "느금마", "자지", "보지", "씨발", "씨발년", "새끼", "병신", "좆밥", "1찍", "2찍", "좆물", "걸레년", "년놈",
         "딸딸이", "빨갱이", "토착왜구", "수구꼴통", "문빠", "벌레새끼", "일베충", "펨코충", "죽여버려", "목잘라", "찌른다", "칼부림",
-        "게이새끼", "게이년", "병신", "메갈", "시발", "시바라", "씨바", "시바", "찔러", "등신", "시발",
+        "게이새끼", "게이년", "메갈", "시발", "시바라", "씨바", "시바", "찔러", "등신",
         "motherfucker", "nigger", "faggot", "cunt", "slut", "whore", "dick", "pussy", "retard"
     )
 
@@ -35,26 +35,55 @@ object KeywordFilter {
         "bitch", "asshole", "shit", "fuck", "crap", "loser", "dumb", "idiot"
     )
 
+
+
+    private val whitelistRegex: Regex
+    private val automaton: AhoCorasick
+
+    init {
+        val normalizedWhitelist = WHITELIST
+            .map { NormLite.normalize(it) }
+            .filter { it.isNotEmpty() }
+
+        val normalizedBlock = BLOCK
+            .map { NormLite.normalize(it) }
+            .filter { it.isNotEmpty() }
+
+        val normalizedWarn = WARN
+            .map { NormLite.normalize(it) }
+            .filter { it.isNotEmpty() }
+
+        whitelistRegex = if (normalizedWhitelist.isEmpty()) {
+            Regex("(?!x)x")
+        } else {
+            Regex(normalizedWhitelist.joinToString("|") { Regex.escape(it) })
+        }
+
+        automaton = AhoCorasick().apply {
+            normalizedBlock.forEach { addPattern(it, Decision.BLOCK) }
+            normalizedWarn.forEach { addPattern(it, Decision.WARN) }
+            buildFailureLinks()
+        }
+    }
+
     @JvmStatic
     fun decide(raw: String): Decision {
         var norm = NormLite.normalize(raw)
 
-        for (w in WHITELIST) {
-            norm = norm.replace(w, "")
+        if (norm.isEmpty()) {
+            return Decision.ALLOW
         }
 
-        for (b in BLOCK) {
-            if (norm.contains(b)) {
-                return Decision.BLOCK
-            }
+        // 화이트리스트 제거
+        norm = whitelistRegex.replace(norm, "")
+
+        if (norm.isEmpty()) {
+            return Decision.ALLOW
         }
 
-        for (w in WARN) {
-            if (norm.contains(w)) {
-                return Decision.WARN
-            }
-        }
-        return Decision.ALLOW
+
+        val result = automaton.search(norm)
+
+        return result ?: Decision.ALLOW
     }
-
 }
