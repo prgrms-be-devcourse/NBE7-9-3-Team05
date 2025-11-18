@@ -110,6 +110,7 @@ docker run -d \
   -p ${NEW_PORT}:8080 \
   -v /home/ubuntu/application-prod.yml:/app/application-prod.yml:ro \
   -v /home/ubuntu/aws_motionit_private_key.pem:/app/config/aws_motionit_private_key.pem:ro \
+  -e JAVA_TOOL_OPTIONS="-Xms300m -Xmx450m" \
   -e SPRING_PROFILES_ACTIVE=prod \
   -e DATABASE_URL="${DATABASE_URL}" \
   -e DB_USERNAME="${DB_USERNAME}" \
