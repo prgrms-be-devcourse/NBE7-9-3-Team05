@@ -1,29 +1,26 @@
-package com.back.motionit.domain.challenge.room.dto;
+package com.back.motionit.domain.challenge.room.dto
 
-import java.time.LocalDate;
+import com.back.motionit.domain.challenge.video.entity.ChallengeVideo
+import java.time.LocalDate
 
-import com.back.motionit.domain.challenge.video.entity.ChallengeVideo;
+data class ChallengeVideoDto(
+    val id: Long?,
+    val youtubeVideoId: String,
 
-public record ChallengeVideoDto(
-	Long id,
-	String youtubeVideoId,
+    val title: String,
 
-	String title,
-
-	String thumbnailUrl,
-	Integer duration,
-	LocalDate uploadDate,
-	Boolean isTodayMission
+    val thumbnailUrl: String,
+    val duration: Int,
+    val uploadDate: LocalDate,
+    val isTodayMission: Boolean
 ) {
-	public ChallengeVideoDto(ChallengeVideo video) {
-		this(
-			video.getId(),
-			video.getYoutubeVideoId(),
-			video.getTitle(),
-			video.getThumbnailUrl(),
-			video.getDuration(),
-			video.getUploadDate(),
-			video.isTodayMission()
-		);
-	}
+    constructor(video: ChallengeVideo) : this(
+        video.id,
+        video.youtubeVideoId,
+        video.title,
+        video.thumbnailUrl,
+        video.duration,
+        video.uploadDate,
+        video.isTodayMission
+    )
 }
