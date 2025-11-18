@@ -4,7 +4,7 @@ import com.back.motionit.domain.challenge.participant.repository.ChallengePartic
 import com.back.motionit.domain.challenge.room.entity.ChallengeRoom
 import com.back.motionit.domain.challenge.room.repository.ChallengeRoomRepository
 import com.back.motionit.domain.challenge.video.dto.YoutubeVideoPayload
-import com.back.motionit.domain.challenge.video.external.youtube.YoutubeMetadataClient
+import com.back.motionit.domain.challenge.video.external.youtube.YoutubeMetadataResilientClient
 import com.back.motionit.domain.challenge.video.external.youtube.dto.YoutubeVideoMetadata
 import com.back.motionit.domain.challenge.video.repository.ChallengeVideoRepository
 import com.back.motionit.domain.challenge.video.service.ChallengeVideoService
@@ -21,6 +21,9 @@ import com.back.motionit.security.SecurityUser
 import com.back.motionit.support.BaseIntegrationTest
 import com.back.motionit.support.SecuredIntegrationTest
 import com.fasterxml.jackson.databind.ObjectMapper
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException
+import io.github.resilience4j.circuitbreaker.CircuitBreaker
+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -60,7 +63,7 @@ class OutboxProcessorIntegrationTest : BaseIntegrationTest() {
     lateinit var objectMapper: ObjectMapper
 
     @MockitoBean
-    lateinit var youtubeMetadataClient: YoutubeMetadataClient
+    lateinit var youtubeMetadataResilientClient: YoutubeMetadataResilientClient
 
     private lateinit var user: User
     private lateinit var room: ChallengeRoom
@@ -118,7 +121,7 @@ class OutboxProcessorIntegrationTest : BaseIntegrationTest() {
                 durationSeconds = 10,
             )
 
-            `when`(youtubeMetadataClient.fetchMetadata(youtubeUrl))
+            `when`(youtubeMetadataResilientClient.fetchMetadata(youtubeUrl))
                 .thenReturn(fakeMetadata)
 
             // when
@@ -131,7 +134,9 @@ class OutboxProcessorIntegrationTest : BaseIntegrationTest() {
             assertThat(updated.attemptCount).isEqualTo(1)
             assertThat(updated.lastErrorMessage).isNull()
 
-            verify(youtubeMetadataClient, times(1)).fetchMetadata(payload.youtubeUrl)
+            verify(youtubeMetadataResilientClient, times(1))
+                .fetchMetadata(payload.youtubeUrl)
+
             verify(challengeVideoService, times(1))
                 .saveChallengeVideo(
                     payload.userId,
@@ -142,7 +147,7 @@ class OutboxProcessorIntegrationTest : BaseIntegrationTest() {
         }
 
         @Test
-        @DisplayName("실패 케이스: 외부 HTTP 실패 → status=PENDING 유지, attemptCount 증가")
+        @DisplayName("실패 케이스: 외부 HTTP 실패 → status=PENDING 유지, attemptCount=1")
         fun processYoutubeVideoEvent_failure_retryPending() {
             // given
             val badUrl = "${youtubeUrl}WRONG_URL"
@@ -162,7 +167,7 @@ class OutboxProcessorIntegrationTest : BaseIntegrationTest() {
                 )
             )
 
-            `when`(youtubeMetadataClient.fetchMetadata(badUrl))
+            `when`(youtubeMetadataResilientClient.fetchMetadata(badUrl))
                 .thenThrow(RuntimeException("youtube api error"))
 
             // when
@@ -175,7 +180,9 @@ class OutboxProcessorIntegrationTest : BaseIntegrationTest() {
             assertThat(updated.attemptCount).isEqualTo(1)
             assertThat(updated.lastErrorMessage).isNotNull()
 
-            verify(youtubeMetadataClient, times(1)).fetchMetadata(badUrl)
+            verify(youtubeMetadataResilientClient, times(1))
+                .fetchMetadata(badUrl)
+
             verifyNoInteractions(challengeVideoService)
         }
 
@@ -203,7 +210,7 @@ class OutboxProcessorIntegrationTest : BaseIntegrationTest() {
                 )
             )
 
-            `when`(youtubeMetadataClient.fetchMetadata(badUrl))
+            `when`(youtubeMetadataResilientClient.fetchMetadata(badUrl))
                 .thenThrow(RuntimeException("permanent error"))
 
             // when
@@ -216,7 +223,46 @@ class OutboxProcessorIntegrationTest : BaseIntegrationTest() {
             assertThat(updated.status).isEqualTo(OutboxStatus.FAILED)
             assertThat(updated.lastErrorMessage).isNotBlank()
 
-            verify(youtubeMetadataClient, times(1)).fetchMetadata(badUrl)
+            verify(youtubeMetadataResilientClient, times(1))
+                .fetchMetadata(badUrl)
+
+            verifyNoInteractions(challengeVideoService)
+        }
+
+        @Test
+        @DisplayName("서킷 OPEN인 경우: CallNotPermittedException → status=PENDING 유지, attemptCount 그대로")
+        fun processYoutubeVideoEvent_circuitOpen() {
+            // given
+            val circuitBreakerConfig = CircuitBreakerConfig.ofDefaults()
+            val circuitBreaker = CircuitBreaker.of("youtubeMetadata", circuitBreakerConfig)
+
+            val payload = YoutubeVideoPayload(
+                userId = user.id!!,
+                roomId = room.id!!,
+                youtubeUrl = youtubeUrl,
+            )
+
+            val event = outboxEventRepository.save(
+                OutboxEvent(
+                    eventType = OutboxEventType.YOUTUBE_VIDEO,
+                    aggregateType = "ChallengeVideo",
+                    aggregateId = room.id!!,
+                    payload = objectMapper.writeValueAsString(payload),
+                )
+            )
+
+            `when`(youtubeMetadataResilientClient.fetchMetadata(youtubeUrl))
+                .thenThrow(CallNotPermittedException.createCallNotPermittedException(circuitBreaker))
+
+            // when
+            outboxProcessor.pollAndProcess()
+
+            // then
+            val updated = outboxEventRepository.findById(event.id!!).get()
+
+            assertThat(updated.status).isEqualTo(OutboxStatus.PENDING)
+
+            verify(youtubeMetadataResilientClient, times(1)).fetchMetadata(youtubeUrl)
             verifyNoInteractions(challengeVideoService)
         }
     }

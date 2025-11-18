@@ -9,6 +9,7 @@ plugins {
     checkstyle
     jacoco
 }
+val springCloudVersion by extra("2025.0.0")
 
 group = "com.back"
 version = "0.0.1-SNAPSHOT"
@@ -31,6 +32,7 @@ repositories {
 }
 
 dependencies {
+    implementation("org.springframework.cloud:spring-cloud-starter-circuitbreaker-resilience4j")
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     developmentOnly("com.h2database:h2")
     testRuntimeOnly("com.h2database:h2")
@@ -218,6 +220,11 @@ tasks.named<Test>("test") {
         systemProperty("junit.platform.tags.excludes", "integration")
     }
     finalizedBy(tasks.jacocoTestReport)
+}
+dependencyManagement {
+    imports {
+        mavenBom("org.springframework.cloud:spring-cloud-dependencies:$springCloudVersion")
+    }
 }
 
 tasks.register<Test>("fullTest") {
