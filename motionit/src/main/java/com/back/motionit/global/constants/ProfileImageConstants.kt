@@ -1,10 +1,5 @@
-package com.back.motionit.global.constants;
+package com.back.motionit.global.constants
 
-public final class ProfileImageConstants {
-
-	public static final String DEFAULT_PROFILE_IMAGE =
-		"images/profiles/kakao-default-profile.png";
-
-	private ProfileImageConstants() {
-	}
+object ProfileImageConstants {
+    const val DEFAULT_PROFILE_IMAGE: String = "images/profiles/kakao-default-profile.png"
 }

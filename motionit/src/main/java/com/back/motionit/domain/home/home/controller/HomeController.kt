@@ -1,37 +1,31 @@
-package com.back.motionit.domain.home.home.controller;
+package com.back.motionit.domain.home.home.controller
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-
-import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.tags.Tag
+import org.springframework.http.MediaType
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.RestController
+import java.net.InetAddress
 
 @RestController
 @Tag(name = "Home", description = "홈 컨트롤러")
-public class HomeController {
+class HomeController {
+    @GetMapping(produces = [MediaType.TEXT_HTML_VALUE])
+    fun home(): String {
+        val localhost = InetAddress.getLocalHost()
 
-	@GetMapping(produces = MediaType.TEXT_HTML_VALUE)
-	public String home() throws UnknownHostException {
-
-		InetAddress localhost = InetAddress.getLocalHost();
-
-		return """
+        return """
 			<h1>Welcome to Rest1</h1>
 			<p>Server IP Address: %s</p>
 			<p>Server Host Name: %s</p>
 			<div>
 				<a href="swagger-ui/index.html">API 문서로 이동</a>
 			</div>
-			""".formatted(localhost.getHostAddress(), localhost.getHostName());
-	}
+			
+			""".trimIndent().formatted(localhost.hostAddress, localhost.hostName)
+    }
 
-	@GetMapping(value = "test/fetchData", produces = MediaType.TEXT_HTML_VALUE)
-	public String testFetch() {
-
-		return """
+    @GetMapping(value = ["test/fetchData"], produces = [MediaType.TEXT_HTML_VALUE])
+    fun testFetch(): String = """
 			<script>
 				console.clear();
 				fetch("/api/v1/posts")
@@ -41,6 +35,6 @@ public class HomeController {
 				.then(response => response.json())
 				.then(data => console.log(data))
 			</script>
-			""";
-	}
+			
+			""".trimIndent()
 }
