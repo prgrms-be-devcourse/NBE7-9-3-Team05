@@ -53,7 +53,6 @@ class LocalAuthService(
         return buildAuthResponse(savedUser, tokens)
     }
 
-    @Transactional
     fun login(request: LoginRequest): AuthResponse {
         val user = userRepository.findByEmail(request.email)
             .orElseThrow { BusinessException(AuthErrorCode.LOGIN_FAILED) }

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 @Service
+@Transactional(readOnly = true)
 class SocialAuthService(
     private val userRepository: UserRepository,
     private val passwordEncoder: PasswordEncoder,
@@ -20,6 +21,7 @@ class SocialAuthService(
     private val jwtTokenProvider: JwtTokenProvider
 ) {
 
+    @Transactional
     fun join(
         kakaoId: Long,
         email: String?,
@@ -44,6 +46,7 @@ class SocialAuthService(
         return userRepository.save(user)
     }
 
+    @Transactional
     fun modifyOrJoin(
         kakaoId: Long,
         email: String?,
