@@ -3,14 +3,12 @@ package com.back.motionit.domain.challenge.room.repository
 import com.back.motionit.domain.challenge.room.entity.ChallengeRoom
 import com.back.motionit.domain.challenge.video.entity.OpenStatus
 import jakarta.persistence.EntityManager
-import lombok.RequiredArgsConstructor
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Repository
 
 @Repository
-@RequiredArgsConstructor
 class ChallengeRoomSummaryRepositoryImpl(
     private val manager: EntityManager
 ) : ChallengeRoomSummaryRepository {

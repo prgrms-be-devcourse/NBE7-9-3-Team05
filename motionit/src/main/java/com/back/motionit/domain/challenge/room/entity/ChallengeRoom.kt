@@ -43,7 +43,6 @@ class ChallengeRoom(
         mappedBy = "challengeRoom",
         cascade = [CascadeType.PERSIST, CascadeType.REMOVE],
         orphanRemoval = true,
-        fetch = FetchType.LAZY
     )
     private val challengeVideoList: MutableList<ChallengeVideo> = mutableListOf()
 
@@ -51,7 +50,6 @@ class ChallengeRoom(
         mappedBy = "challengeRoom",
         cascade = [CascadeType.PERSIST, CascadeType.REMOVE],
         orphanRemoval = true,
-        fetch = FetchType.LAZY
     )
     private val participants: MutableList<ChallengeParticipant> = mutableListOf()
 
