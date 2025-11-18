@@ -2,41 +2,32 @@ package com.back.motionit.standard.ut
 
 import io.jsonwebtoken.ExpiredJwtException
 import io.jsonwebtoken.Jwts
-import io.jsonwebtoken.io.Decoders
-import io.jsonwebtoken.security.Keys
-import java.security.Key
 import java.util.*
+import javax.crypto.SecretKey
 
 class JwtUtil {
     object Jwt {
+
         @JvmStatic
-        fun toString(secret: String, expireSeconds: Long, body: Map<String, Any>): String {
-            val claimsBuilder = Jwts.claims()
+        fun toString(secretKey: SecretKey, expireSeconds: Long, body: Map<String, Any>): String {
 
-            for ((key, value) in body) {
-                claimsBuilder.add(key, value)
-            }
-
-            val claims = claimsBuilder.build()
+            val claims = Jwts.claims().apply {
+                body.forEach { (key, value) -> add(key, value) }
+            }.build()
 
             val issuedAt = Date()
             val expiration = Date(issuedAt.time + 1000L * expireSeconds)
 
-            val secretKey: Key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret.trim { it <= ' ' }))
-
-            val jwt = Jwts.builder()
+            return Jwts.builder()
                 .claims(claims)
                 .issuedAt(issuedAt)
                 .expiration(expiration)
                 .signWith(secretKey)
                 .compact()
-
-            return jwt
         }
 
         @JvmStatic
-        fun isValid(jwt: String, secret: String): Boolean {
-            val secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret.trim { it <= ' ' }))
+        fun isValid(jwt: String, secretKey: SecretKey): Boolean {
 
             try {
                 Jwts
@@ -52,14 +43,10 @@ class JwtUtil {
         }
 
         @JvmStatic
-        fun payloadOrNull(jwt: String?, secret: String): Map<String, Any>? {
+        fun payloadOrNull(jwt: String?, secretKey: SecretKey): Map<String, Any?>? {
+
             if (jwt.isNullOrBlank()) return null
-
-            val secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret.trim { it <= ' ' }))
-
-            if (!isValid(jwt, secret)) {
-                return null
-            }
+            if (!isValid(jwt, secretKey)) return null
 
 
             val parsed = Jwts.parser()
@@ -75,22 +62,20 @@ class JwtUtil {
         }
 
         @JvmStatic
-        fun isExpired(jwt: String?, secret: String): Boolean {
+        fun isExpired(jwt: String?, secretKey: SecretKey): Boolean {
             if (jwt.isNullOrBlank()) return true
 
-            val secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret.trim { it <= ' ' }))
-
-            try {
+            return try {
                 Jwts
                     .parser()
                     .verifyWith(secretKey)
                     .build()
                     .parse(jwt)
-                return false
+                false
             } catch (e: ExpiredJwtException) {
-                return true
+                true
             } catch (e: Exception) {
-                return true
+                true
             }
         }
     }
