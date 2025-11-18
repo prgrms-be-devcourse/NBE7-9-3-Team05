@@ -2,7 +2,13 @@ package com.back.motionit.domain.challenge.participant.repository
 
 import com.back.motionit.domain.challenge.participant.dto.JoinCheckDto
 import com.back.motionit.domain.challenge.participant.entity.QChallengeParticipant
+import com.back.motionit.domain.challenge.room.entity.QChallengeRoom
+import com.querydsl.core.types.Projections
+import com.querydsl.jpa.JPAExpressions
+import com.querydsl.jpa.impl.JPAQueryFactory
+import org.springframework.stereotype.Repository
 
+@Repository
 class ChallengeParticipantRepositoryImpl(
     private val jpaQuery: JPAQueryFactory
 ): ChallengeParticipantCustom {
@@ -10,17 +16,37 @@ class ChallengeParticipantRepositoryImpl(
         userId: Long,
         roomId: Long
     ): JoinCheckDto {
-        val participant = QChallengeParticipant.challengeParticipant
+        val cp = QChallengeParticipant.challengeParticipant
 
-        val alreadyJoinedQuery = jpaQuery
-            .select(participant.count())
-            .from(participant)
+        val alreadyJoinedSub = JPAExpressions
+            .select(cp.count())
+            .from(cp)
             .where(
-                participant.user.id.eq(userId),
-                participant.challengeRoom.id.eq(roomId),
-                participant.quited.isFalse
+                cp.user.id.eq(userId),
+                cp.challengeRoom.id.eq(roomId),
+                cp.quited.isFalse
             )
 
+        val currentCountSub = JPAExpressions
+            .select(cp.count())
+            .from(cp)
+            .where(
+                cp.challengeRoom.id.eq(roomId),
+                cp.quited.isFalse
+            )
 
+        val result = jpaQuery
+            .select(
+                Projections.constructor(
+                    JoinCheckDto::class.java,
+                    alreadyJoinedSub,
+                    currentCountSub
+                )
+            )
+            .from(QChallengeRoom.challengeRoom) // dummy from
+            .where(QChallengeRoom.challengeRoom.id.eq(roomId))
+            .fetchOne()
+
+        return result ?: JoinCheckDto(0, 0)
     }
 }
