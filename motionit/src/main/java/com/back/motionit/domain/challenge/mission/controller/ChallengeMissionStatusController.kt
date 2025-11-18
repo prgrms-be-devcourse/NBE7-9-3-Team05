@@ -9,7 +9,6 @@ import com.back.motionit.domain.challenge.validator.ChallengeAuthValidator
 import com.back.motionit.global.request.RequestContext
 import com.back.motionit.global.respoonsedata.ResponseData
 import com.back.motionit.global.respoonsedata.ResponseData.Companion.success
-import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.web.bind.annotation.*
 
 @RestController
@@ -19,7 +18,6 @@ class ChallengeMissionStatusController(
     private val requestContext: RequestContext,
     private val challengeAuthValidator: ChallengeAuthValidator, // 챌린지 방참여자 여부 판단
 ) : ChallengeMissionStatusApi {
-    private val log = KotlinLogging.logger {}
 
     @GetMapping("/ai-summary")
     override fun generateAiSummary(@PathVariable roomId: Long): ResponseData<String> {
