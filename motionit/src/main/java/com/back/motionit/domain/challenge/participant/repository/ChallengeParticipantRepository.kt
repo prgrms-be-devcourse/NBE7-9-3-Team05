@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 
-interface ChallengeParticipantRepository : JpaRepository<ChallengeParticipant, Long> {
+interface ChallengeParticipantRepository : JpaRepository<ChallengeParticipant, Long>, ChallengeParticipantCustom {
     fun existsByUserAndChallengeRoom(user: User, challengeRoom: ChallengeRoom): Boolean
 
     fun findByUserAndChallengeRoom(user: User, challengeRoom: ChallengeRoom): ChallengeParticipant?

@@ -35,22 +35,15 @@ class ChallengeParticipantService(
             .orElseThrow{ BusinessException(ChallengeParticipantErrorCode.NOT_FOUND_USER) }
 
         val challengeRoom = challengeRoomRepository.findByIdWithLock(roomId)
+            ?: throw BusinessException(ChallengeParticipantErrorCode.CANNOT_FIND_CHALLENGE_ROOM)
 
-        if (challengeRoom == null) {
-            throw BusinessException(ChallengeParticipantErrorCode.CANNOT_FIND_CHALLENGE_ROOM)
-        }
+        val check = challengeParticipantRepository.checkJoinStatus(userId, roomId)
 
-        // 이미 참여중인 사용자인지 확인
-        // TODO: !!는 전환단계에서만 유지, user/room 전환 후 리팩터링 필요
-        val alreadyJoined = challengeParticipantRepository
-            .existsActiveParticipant(user.id!!, challengeRoom.id!!)
-        if (alreadyJoined) {
+        if (check.alreadyJoined > 0) {
             throw BusinessException(ChallengeParticipantErrorCode.ALREADY_JOINED)
         }
 
-        // 챌린지 룸의 현재 참가자 수가 최대 인원 수에 도달했는지 확인
-        val currentParticipants = challengeParticipantRepository.countByChallengeRoomAndQuitedFalse(challengeRoom)
-        if (currentParticipants >= challengeRoom.capacity) {
+        if (check.currentCount >= challengeRoom.capacity) {
             throw BusinessException(ChallengeParticipantErrorCode.FULL_JOINED_ROOM)
         }
 
@@ -63,14 +56,7 @@ class ChallengeParticipantService(
         val user = userRepository.findById(userId)
             .orElseThrow{ BusinessException(ChallengeParticipantErrorCode.NOT_FOUND_USER) }
 
-        val challengeRoom = challengeRoomRepository.findById(challengeRoomId)
-            .orElseThrow{ BusinessException(ChallengeParticipantErrorCode.CANNOT_FIND_CHALLENGE_ROOM) }
-
-        if (challengeRoom == null) {
-            throw BusinessException(ChallengeParticipantErrorCode.CANNOT_FIND_CHALLENGE_ROOM)
-        }
-
-        val participant = challengeParticipantRepository.findByUserAndChallengeRoom(user, challengeRoom)
+        val participant = challengeParticipantRepository.findActiveParticipant(userId, challengeRoomId)
             ?: throw BusinessException(ChallengeParticipantErrorCode.NO_PARTICIPANT_IN_ROOM)
 
         // Soft delete

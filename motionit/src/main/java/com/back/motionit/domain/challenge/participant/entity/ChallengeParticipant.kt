@@ -7,7 +7,15 @@ import jakarta.persistence.*
 import java.time.LocalDateTime
 
 @Entity
-@Table(name = "challenge_participants")
+@Table(
+    name = "challenge_participants",
+    indexes = [
+        Index(
+            name = "idx_cp_user_room_quited",
+            columnList = "user_id, challenge_room_id, quited"
+        )
+    ]
+)
 class ChallengeParticipant(// 챌린지 참가자
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
