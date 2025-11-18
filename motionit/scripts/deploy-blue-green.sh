@@ -89,7 +89,7 @@ docker run -d \
   --restart unless-stopped \
   --add-host=host.docker.internal:host-gateway \
   -p ${NEW_PORT}:8080 \
-  -v /home/ubuntu/aws_motionit_private_key.pem:/app/aws_motionit_private_key.pem:ro \
+  -v /home/ubuntu/aws_motionit_private_key.pem:/app/config/aws_motionit_private_key.pem:ro \
   -e SPRING_PROFILES_ACTIVE=prod \
   -e SPRING_DATASOURCE_URL="${DATABASE_URL}" \
   -e SPRING_DATASOURCE_USERNAME="${DB_USERNAME}" \
@@ -102,7 +102,7 @@ docker run -d \
   -e AWS_S3_BUCKET_NAME="${AWS_S3_BUCKET_NAME}" \
   -e AWS_CLOUDFRONT_DOMAIN="${AWS_CLOUDFRONT_DOMAIN}" \
   -e AWS_CLOUDFRONT_KEY_ID="${AWS_CLOUDFRONT_KEY_ID}" \
-  -e AWS_CLOUDFRONT_PRIVATE_KEY_PATH="/app/aws_motionit_private_key.pem" \
+  -e AWS_CLOUDFRONT_PRIVATE_KEY_PATH="/app/config/aws_motionit_private_key.pem" \
   -e JWT_SECRET="${JWT_SECRET}" \
   -e JWT_ACCESS_TOKEN_EXPIRATION="${JWT_ACCESS_TOKEN_EXPIRATION}" \
   -e JWT_REFRESH_TOKEN_EXPIRATION="${JWT_REFRESH_TOKEN_EXPIRATION}" \
