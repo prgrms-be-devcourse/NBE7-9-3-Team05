@@ -1,6 +1,5 @@
 package com.back.motionit.domain.challenge.video.service
 
-import com.back.motionit.domain.challenge.participant.repository.ChallengeParticipantRepository
 import com.back.motionit.domain.challenge.room.entity.ChallengeRoom
 import com.back.motionit.domain.challenge.room.repository.ChallengeRoomRepository
 import com.back.motionit.domain.challenge.validator.ChallengeAuthValidator
@@ -35,20 +34,6 @@ class ChallengeVideoService(
     private val outboxEventRepository: OutboxEventRepository,
     private val objectMapper: ObjectMapper,
 ) {
-
-    @Transactional
-    fun uploadChallengeVideo(actorId: Long, roomId: Long, youtubeUrl: String): ChallengeVideo {
-        val user = getUserOrThrow(actorId)
-        val participant = challengeAuthValidator.validateActiveParticipantWithRoom(actorId, roomId)
-        val challengeRoom = participant.challengeRoom
-
-        val metadata = fetchMetadata(youtubeUrl)
-        validateDuplicateVideo(challengeRoom, metadata.videoId)
-
-        val video = of(challengeRoom, user, metadata, true)
-        return challengeVideoRepository.save<ChallengeVideo>(video)
-    }
-
     @Transactional
     fun requestUploadChallengeVideo(actorId: Long, roomId: Long, youtubeUrl: String) {
         challengeAuthValidator.validateActiveParticipant(actorId, roomId)
@@ -92,11 +77,11 @@ class ChallengeVideoService(
     @Transactional(readOnly = true)
     fun getTodayMissionVideos(actorId: Long, roomId: Long): List<ChallengeVideo> {
         challengeAuthValidator.validateActiveParticipant(actorId, roomId)
-        val challengeRoom = getRoomOrThrow(roomId)
 
-        // 방에 업로드된 영상들 중에서 오늘의 미션 영상만 필터링
-        return challengeVideoRepository.findByChallengeRoomId(roomId)
-            .filter { it.isTodayMission && it.uploadDate == LocalDate.now() }
+        return challengeVideoRepository.findTodayVideos(
+            roomId = roomId,
+            today = LocalDate.now()
+        )
     }
 
     //사용자가 직접 업로드한 영상 삭제
@@ -116,26 +101,9 @@ class ChallengeVideoService(
         return challengeVideoRepository.findByUserIdAndUploadDate(actorId, LocalDate.now())
     }
 
-    /**
-     * TODO:
-     * * 현재 유저/방/참가자 검증 과정에서 DB 조회가 3~4회 발생함. -> 현재는 무결성에 초점
-     * * 향후 트래픽 증가 시 아래 방향으로 리팩터링 고려:
-     * * 1. ChallengeParticipantRepository.findByUserIdAndRoomIdFetchJoin() 으로 통합
-     * * 2. RequestContext 내부에서 인증 유저 엔티티 캐싱
-     * * 3. QueryDSL exists() 서브쿼리 활용으로 중복 조회 제거
-     */
     private fun getUserOrThrow(userId: Long): User {
         return userRepository.findByIdOrNull(userId)
             ?: throw BusinessException(ChallengeVideoErrorCode.NOT_FOUND_USER)
-    }
-
-    private fun getRoomOrThrow(roomId: Long): ChallengeRoom {
-        return challengeRoomRepository.findByIdOrNull(roomId)
-            ?: throw BusinessException(ChallengeVideoErrorCode.CANNOT_FIND_CHALLENGE_ROOM)
-    }
-
-    private fun fetchMetadata(youtubeUrl: String): YoutubeVideoMetadata {
-        return youtubeMetadataClient.fetchMetadata(youtubeUrl)
     }
 
     private fun validateDuplicateVideo(room: ChallengeRoom, videoId: String) {
