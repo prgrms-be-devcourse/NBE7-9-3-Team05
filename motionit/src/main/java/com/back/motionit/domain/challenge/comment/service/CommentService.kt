@@ -52,7 +52,7 @@ class CommentService(
 
     @Transactional
     fun create(roomId: Long, userId: Long, req: CommentCreateReq): CommentRes {
-        assertActiveRoomOrThrow(roomId)
+
         challengeAuthValidator.validateActiveParticipant(userId, roomId)
 
         val room: ChallengeRoom = challengeRoomRepository.findById(roomId)
@@ -108,7 +108,7 @@ class CommentService(
 
     @Transactional
     fun edit(roomId: Long, commentId: Long, userId: Long, req: CommentEditReq): CommentRes {
-        assertActiveRoomOrThrow(roomId)
+
         challengeAuthValidator.validateActiveParticipant(userId, roomId)
 
         val comment = loadActiveCommentOrThrow(roomId, commentId)
@@ -126,7 +126,7 @@ class CommentService(
 
     @Transactional
     fun delete(roomId: Long, commentId: Long, userId: Long): CommentRes {
-        assertActiveRoomOrThrow(roomId)
+
         challengeAuthValidator.validateActiveParticipant(userId, roomId)
 
         val comment = loadActiveCommentOrThrow(roomId, commentId)
