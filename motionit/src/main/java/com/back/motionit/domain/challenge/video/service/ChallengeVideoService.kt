@@ -4,6 +4,7 @@ import com.back.motionit.domain.challenge.participant.repository.ChallengePartic
 import com.back.motionit.domain.challenge.room.entity.ChallengeRoom
 import com.back.motionit.domain.challenge.room.repository.ChallengeRoomRepository
 import com.back.motionit.domain.challenge.validator.ChallengeAuthValidator
+import com.back.motionit.domain.challenge.video.dto.YoutubeVideoPayload
 import com.back.motionit.domain.challenge.video.entity.ChallengeVideo
 import com.back.motionit.domain.challenge.video.entity.ChallengeVideo.Companion.of
 import com.back.motionit.domain.challenge.video.external.youtube.YoutubeMetadataClient
@@ -11,8 +12,12 @@ import com.back.motionit.domain.challenge.video.external.youtube.dto.YoutubeVide
 import com.back.motionit.domain.challenge.video.repository.ChallengeVideoRepository
 import com.back.motionit.domain.user.entity.User
 import com.back.motionit.domain.user.repository.UserRepository
+import com.back.motionit.global.enums.OutboxEventType
 import com.back.motionit.global.error.code.ChallengeVideoErrorCode
 import com.back.motionit.global.error.exception.BusinessException
+import com.back.motionit.global.outbox.entity.OutboxEvent
+import com.back.motionit.global.outbox.repository.OutboxEventRepository
+import com.fasterxml.jackson.databind.ObjectMapper
 import lombok.RequiredArgsConstructor
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
@@ -24,10 +29,11 @@ import java.time.LocalDate
 class ChallengeVideoService(
     private val challengeVideoRepository: ChallengeVideoRepository,
     private val challengeRoomRepository: ChallengeRoomRepository,
-    private val challengeParticipantRepository: ChallengeParticipantRepository,
     private val userRepository: UserRepository,
     private val youtubeMetadataClient: YoutubeMetadataClient, // 유튜브 메타데이터 클라이언트
     private val challengeAuthValidator: ChallengeAuthValidator,
+    private val outboxEventRepository: OutboxEventRepository,
+    private val objectMapper: ObjectMapper,
 ) {
 
     @Transactional
@@ -41,6 +47,45 @@ class ChallengeVideoService(
 
         val video = of(challengeRoom, user, metadata, true)
         return challengeVideoRepository.save<ChallengeVideo>(video)
+    }
+
+    @Transactional
+    fun requestUploadChallengeVideo(actorId: Long, roomId: Long, youtubeUrl: String) {
+        challengeAuthValidator.validateActiveParticipant(actorId, roomId)
+
+        val payload = YoutubeVideoPayload(
+            userId = actorId,
+            roomId = roomId,
+            youtubeUrl = youtubeUrl.trim(),
+        )
+
+        val payloadJson = objectMapper.writeValueAsString(payload)
+
+        val outboxEvent = OutboxEvent(
+            eventType = OutboxEventType.YOUTUBE_VIDEO,
+            aggregateType = "ChallengeVideo",
+            aggregateId = roomId,
+            payload = payloadJson,
+        )
+
+        outboxEventRepository.save(outboxEvent)
+    }
+
+    @Transactional
+    fun saveChallengeVideo(
+        actorId: Long,
+        roomId: Long,
+        metadata: YoutubeVideoMetadata,
+        isTodayMission: Boolean = true,
+    ): ChallengeVideo {
+        val user = getUserOrThrow(actorId)
+        val participant = challengeAuthValidator.validateActiveParticipantWithRoom(actorId, roomId)
+        val challengeRoom = participant.challengeRoom
+
+        validateDuplicateVideo(challengeRoom, metadata.videoId)
+
+        val video = of(challengeRoom, user, metadata, isTodayMission)
+        return challengeVideoRepository.save(video)
     }
 
     // 오늘 업로드된 모든 '오늘의 미션 영상' 조회 (방 전체 기준)

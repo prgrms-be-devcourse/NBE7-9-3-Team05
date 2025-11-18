@@ -25,8 +25,9 @@ import org.springframework.security.core.authority.AuthorityUtils
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-import org.springframework.test.web.servlet.result.MockMvcResultHandlers
-import org.springframework.test.web.servlet.result.MockMvcResultMatchers
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.result.MockMvcResultHandlers.print
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 
 @SecuredIntegrationTest
 class ChallengeParticipantControllerTest : BaseIntegrationTest() {
@@ -46,16 +47,19 @@ class ChallengeParticipantControllerTest : BaseIntegrationTest() {
     private lateinit var room: ChallengeRoom
 
     lateinit var securityUser: SecurityUser
-    lateinit var authentication: UsernamePasswordAuthenticationToken
 
     @BeforeEach
     fun setUp() {
         user = userHelper.createUser()
-        room = createTestRoom(user)
+        room = challengeRoomRepository.save(fakeChallengeRoom(user))
+
         val authorities = AuthorityUtils.createAuthorityList("ROLE_USER")
-        securityUser = SecurityUser(user.id, user.password, user.nickname, authorities)
-        authentication =
-            UsernamePasswordAuthenticationToken(securityUser, null, securityUser.authorities)
+        securityUser = SecurityUser(user.id!!, user.password!!, user.nickname, authorities)
+
+        val authentication = UsernamePasswordAuthenticationToken(
+            securityUser, null, securityUser.authorities
+        )
+
         SecurityContextHolder.getContext().authentication = authentication
     }
 
@@ -64,23 +68,17 @@ class ChallengeParticipantControllerTest : BaseIntegrationTest() {
         SecurityContextHolder.clearContext()
     }
 
-    private fun createTestRoom(owner: User): ChallengeRoom {
-        val room = fakeChallengeRoom(owner)
-        return challengeRoomRepository.save(room)
-    }
-
     @Test
     @DisplayName("POST `/api/v1/challenge/participants/{roomId}/join` - 성공적으로 방 참가")
     fun successJoinChallengeRoom() {
-        mvc.perform(
-            MockMvcRequestBuilders.post("/api/v1/challenge/participants/{roomId}/join", room.id)
+        mvc.perform(post("/api/v1/challenge/participants/{roomId}/join", room.id)
                 .contentType(MediaType.APPLICATION_JSON)
         )
-            .andDo(MockMvcResultHandlers.print())
-            .andExpect(MockMvcResultMatchers.handler().handlerType(ChallengeParticipantController::class.java))
-            .andExpect(MockMvcResultMatchers.handler().methodName("joinChallengeRoom"))
-            .andExpect(MockMvcResultMatchers.status().isOk())
-            .andExpect(MockMvcResultMatchers.jsonPath("$.msg").value(ChallengeParticipantHttp.JOIN_SUCCESS_MESSAGE))
+            .andDo(print())
+            .andExpect(handler().handlerType(ChallengeParticipantController::class.java))
+            .andExpect(handler().methodName("joinChallengeRoom"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.msg").value(ChallengeParticipantHttp.JOIN_SUCCESS_MESSAGE))
 
         val participant =
             challengeParticipantRepository.findByUserAndChallengeRoom(user, room)
@@ -94,24 +92,24 @@ class ChallengeParticipantControllerTest : BaseIntegrationTest() {
     fun failWhenAlreadyJoined() {
         // given - 1회 참가
         mvc.perform(
-            MockMvcRequestBuilders.post("/api/v1/challenge/participants/{roomId}/join", room.id)
+            post("/api/v1/challenge/participants/{roomId}/join", room.id)
                 .contentType(MediaType.APPLICATION_JSON)
-        ).andDo(MockMvcResultHandlers.print())
+        ).andDo(print())
 
         // when - 중복 참가
         val resultActions = mvc.perform(
             MockMvcRequestBuilders.post("/api/v1/challenge/participants/{roomId}/join", room.id)
                 .contentType(MediaType.APPLICATION_JSON)
-        ).andDo(MockMvcResultHandlers.print())
+        ).andDo(print())
 
         val error = ChallengeParticipantErrorCode.ALREADY_JOINED
 
         resultActions
-            .andExpect(MockMvcResultMatchers.handler().handlerType(ChallengeParticipantController::class.java))
-            .andExpect(MockMvcResultMatchers.handler().methodName("joinChallengeRoom"))
-            .andExpect(MockMvcResultMatchers.status().isBadRequest())
-            .andExpect(MockMvcResultMatchers.jsonPath("$.resultCode").value(error.code))
-            .andExpect(MockMvcResultMatchers.jsonPath("$.msg").value(error.message))
+            .andExpect(handler().handlerType(ChallengeParticipantController::class.java))
+            .andExpect(handler().methodName("joinChallengeRoom"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.resultCode").value(error.code))
+            .andExpect(jsonPath("$.msg").value(error.message))
     }
 
     @Test
@@ -120,18 +118,18 @@ class ChallengeParticipantControllerTest : BaseIntegrationTest() {
         val wrongRoomId = room.id!! + 1L
 
         val resultActions = mvc.perform(
-            MockMvcRequestBuilders.post("/api/v1/challenge/participants/{roomId}/join", wrongRoomId)
+            post("/api/v1/challenge/participants/{roomId}/join", wrongRoomId)
                 .contentType(MediaType.APPLICATION_JSON)
-        ).andDo(MockMvcResultHandlers.print())
+        ).andDo(print())
 
         val error = ChallengeParticipantErrorCode.CANNOT_FIND_CHALLENGE_ROOM
 
         resultActions
-            .andExpect(MockMvcResultMatchers.handler().handlerType(ChallengeParticipantController::class.java))
-            .andExpect(MockMvcResultMatchers.handler().methodName("joinChallengeRoom"))
-            .andExpect(MockMvcResultMatchers.status().isNotFound())
-            .andExpect(MockMvcResultMatchers.jsonPath("$.resultCode").value(error.code))
-            .andExpect(MockMvcResultMatchers.jsonPath("$.msg").value(error.message))
+            .andExpect(handler().handlerType(ChallengeParticipantController::class.java))
+            .andExpect(handler().methodName("joinChallengeRoom"))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.resultCode").value(error.code))
+            .andExpect(jsonPath("$.msg").value(error.message))
     }
 
     @Test
@@ -152,18 +150,18 @@ class ChallengeParticipantControllerTest : BaseIntegrationTest() {
         )
 
         val resultActions = mvc.perform(
-            MockMvcRequestBuilders.post("/api/v1/challenge/participants/{roomId}/join", smallRoom.id)
+            post("/api/v1/challenge/participants/{roomId}/join", smallRoom.id)
                 .contentType(MediaType.APPLICATION_JSON)
-        ).andDo(MockMvcResultHandlers.print())
+        ).andDo(print())
 
         val error = ChallengeParticipantErrorCode.FULL_JOINED_ROOM
 
         resultActions
-            .andExpect(MockMvcResultMatchers.handler().handlerType(ChallengeParticipantController::class.java))
-            .andExpect(MockMvcResultMatchers.handler().methodName("joinChallengeRoom"))
-            .andExpect(MockMvcResultMatchers.status().isBadRequest())
-            .andExpect(MockMvcResultMatchers.jsonPath("$.resultCode").value(error.code))
-            .andExpect(MockMvcResultMatchers.jsonPath("$.msg").value(error.message))
+            .andExpect(handler().handlerType(ChallengeParticipantController::class.java))
+            .andExpect(handler().methodName("joinChallengeRoom"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.resultCode").value(error.code))
+            .andExpect(jsonPath("$.msg").value(error.message))
     }
 
     @Test
@@ -171,24 +169,24 @@ class ChallengeParticipantControllerTest : BaseIntegrationTest() {
     fun successLeaveChallengeRoom() {
         // given - 참가
         mvc.perform(
-            MockMvcRequestBuilders.post("/api/v1/challenge/participants/{roomId}/join", room.id)
+            post("/api/v1/challenge/participants/{roomId}/join", room.id)
                 .contentType(MediaType.APPLICATION_JSON)
-        ).andDo(MockMvcResultHandlers.print())
+        ).andDo(print())
 
         // when - 탈퇴
         val resultActions = mvc.perform(
             MockMvcRequestBuilders.post("/api/v1/challenge/participants/{roomId}/leave", room.id)
                 .contentType(MediaType.APPLICATION_JSON)
-        ).andDo(MockMvcResultHandlers.print())
+        ).andDo(print())
 
         resultActions
-            .andExpect(MockMvcResultMatchers.handler().handlerType(ChallengeParticipantController::class.java))
-            .andExpect(MockMvcResultMatchers.handler().methodName("leaveChallengeRoom"))
-            .andExpect(MockMvcResultMatchers.status().isOk())
+            .andExpect(handler().handlerType(ChallengeParticipantController::class.java))
+            .andExpect(handler().methodName("leaveChallengeRoom"))
+            .andExpect(status().isOk())
             .andExpect(
-                MockMvcResultMatchers.jsonPath("$.resultCode").value(ChallengeParticipantHttp.LEAVE_SUCCESS_CODE)
+                jsonPath("$.resultCode").value(ChallengeParticipantHttp.LEAVE_SUCCESS_CODE)
             )
-            .andExpect(MockMvcResultMatchers.jsonPath("$.msg").value(ChallengeParticipantHttp.LEAVE_SUCCESS_MESSAGE))
+            .andExpect(jsonPath("$.msg").value(ChallengeParticipantHttp.LEAVE_SUCCESS_MESSAGE))
 
         val updated = challengeParticipantRepository
             .findByUserAndChallengeRoom(user, room)
@@ -202,38 +200,38 @@ class ChallengeParticipantControllerTest : BaseIntegrationTest() {
     @DisplayName("POST `/api/v1/challenge/participants/{roomId}/leave` - 방에 참가중이지 않으면 실패")
     fun failWhenNotParticipant() {
         val resultActions = mvc.perform(
-            MockMvcRequestBuilders.post("/api/v1/challenge/participants/{roomId}/leave", room.id)
+            post("/api/v1/challenge/participants/{roomId}/leave", room.id)
                 .contentType(MediaType.APPLICATION_JSON)
-        ).andDo(MockMvcResultHandlers.print())
+        ).andDo(print())
 
         val error = ChallengeParticipantErrorCode.NO_PARTICIPANT_IN_ROOM
 
         resultActions
-            .andExpect(MockMvcResultMatchers.handler().handlerType(ChallengeParticipantController::class.java))
-            .andExpect(MockMvcResultMatchers.handler().methodName("leaveChallengeRoom"))
-            .andExpect(MockMvcResultMatchers.status().isBadRequest())
-            .andExpect(MockMvcResultMatchers.jsonPath("$.resultCode").value(error.code))
-            .andExpect(MockMvcResultMatchers.jsonPath("$.msg").value(error.message))
+            .andExpect(handler().handlerType(ChallengeParticipantController::class.java))
+            .andExpect(handler().methodName("leaveChallengeRoom"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.resultCode").value(error.code))
+            .andExpect(jsonPath("$.msg").value(error.message))
     }
 
     @DisplayName("GET `/api/v1/challenge/participants/{roomId}/status` - 현재 방 참가 상태 조회 성공")
     @Test
     fun participationStatus_success() {
         mvc.perform(
-            MockMvcRequestBuilders.post("/api/v1/challenge/participants/{roomId}/join", room.id)
+            post("/api/v1/challenge/participants/{roomId}/join", room.id)
                 .contentType(MediaType.APPLICATION_JSON)
-        ).andDo(MockMvcResultHandlers.print())
+        ).andDo(print())
 
         mvc.perform(
             MockMvcRequestBuilders.get("/api/v1/challenge/participants/{roomId}/status", room.id)
                 .accept(MediaType.APPLICATION_JSON)
         )
-            .andDo(MockMvcResultHandlers.print())
-            .andExpect(MockMvcResultMatchers.status().isOk())
+            .andDo(print())
+            .andExpect(status().isOk())
             .andExpect(
-                MockMvcResultMatchers.jsonPath("$.msg")
+                jsonPath("$.msg")
                     .value(ChallengeParticipantHttp.GET_PARTICIPANT_STATUS_SUCCESS_MESSAGE)
             )
-            .andExpect(MockMvcResultMatchers.jsonPath("$.data.joined").value(true))
+            .andExpect(jsonPath("$.data.joined").value(true))
     }
 }

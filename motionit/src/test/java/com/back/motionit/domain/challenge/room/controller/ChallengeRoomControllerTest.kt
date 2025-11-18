@@ -78,7 +78,7 @@ class ChallengeRoomControllerTest : BaseIntegrationTest() {
             val params = createRoomRequestBuilder.toParamMap()
 
             val authorities = AuthorityUtils.createAuthorityList("ROLE")
-            securityUser = SecurityUser(user.id, user.password, user.nickname, authorities)
+            securityUser = SecurityUser(user.id!!, user.password!!, user.nickname, authorities)
             authentication =
                 UsernamePasswordAuthenticationToken(securityUser, null, securityUser.authorities)
             SecurityContextHolder.getContext().authentication = authentication
@@ -131,7 +131,7 @@ class ChallengeRoomControllerTest : BaseIntegrationTest() {
             // TODO: BaseEntity 리팩토링 완료 후 수정 필요
             val wrongUserId = user.id!! + 1L
             val authorities = AuthorityUtils.createAuthorityList("ROLE")
-            securityUser = SecurityUser(wrongUserId, user.password, user.nickname, authorities)
+            securityUser = SecurityUser(wrongUserId, user.password!!, user.nickname, authorities)
             authentication =
                 UsernamePasswordAuthenticationToken(securityUser, null, securityUser.authorities)
             SecurityContextHolder.getContext().authentication = authentication
@@ -172,7 +172,7 @@ class ChallengeRoomControllerTest : BaseIntegrationTest() {
             val params = createRoomRequestBuilder.toParamMap()
 
             val authorities = AuthorityUtils.createAuthorityList("ROLE_USER")
-            securityUser = SecurityUser(owner.id, owner.password, owner.nickname, authorities)
+            securityUser = SecurityUser(owner.id!!, owner.password!!, owner.nickname, authorities)
             authentication =
                 UsernamePasswordAuthenticationToken(securityUser, null, securityUser.authorities)
             SecurityContextHolder.getContext().authentication = authentication
@@ -230,7 +230,7 @@ class ChallengeRoomControllerTest : BaseIntegrationTest() {
             }
 
             val authorities = AuthorityUtils.createAuthorityList("ROLE")
-            securityUser = SecurityUser(user.id, user.password, user.nickname, authorities)
+            securityUser = SecurityUser(user.id!!, user.password!!, user.nickname, authorities)
             authentication =
                 UsernamePasswordAuthenticationToken(securityUser, null, securityUser.authorities)
             SecurityContextHolder.getContext().authentication = authentication
@@ -270,7 +270,7 @@ class ChallengeRoomControllerTest : BaseIntegrationTest() {
             }
 
             val authorities = AuthorityUtils.createAuthorityList("ROLE")
-            securityUser = SecurityUser(user.id, user.password, user.nickname, authorities)
+            securityUser = SecurityUser(user.id!!, user.password!!, user.nickname, authorities)
             authentication =
                 UsernamePasswordAuthenticationToken(securityUser, null, securityUser.authorities)
             SecurityContextHolder.getContext().authentication = authentication
@@ -357,7 +357,7 @@ class ChallengeRoomControllerTest : BaseIntegrationTest() {
         @DisplayName("운동방 삭제 성공")
         fun successDeleteRoom() {
             val authorities = AuthorityUtils.createAuthorityList("ROLE")
-            securityUser = SecurityUser(user.id, user.password, user.nickname, authorities)
+            securityUser = SecurityUser(user.id!!, user.password!!, user.nickname, authorities)
             authentication =
                 UsernamePasswordAuthenticationToken(securityUser, null, securityUser.authorities)
             SecurityContextHolder.getContext().authentication = authentication
@@ -389,7 +389,7 @@ class ChallengeRoomControllerTest : BaseIntegrationTest() {
         @DisplayName("운동방 삭제 실패 - 일반 참여자 권한 거부")
         fun failedDeleteRoomWithRole() {
             val authorities = AuthorityUtils.createAuthorityList("ROLE")
-            securityUser = SecurityUser(user.id, user.password, user.nickname, authorities)
+            securityUser = SecurityUser(user.id!!, user.password!!, user.nickname, authorities)
             authentication =
                 UsernamePasswordAuthenticationToken(securityUser, null, securityUser.authorities)
             SecurityContextHolder.getContext().authentication = authentication
