@@ -28,13 +28,6 @@ class LocalAuthService(
 
     @Transactional
     fun signup(request: SignupRequest): AuthResponse {
-        if (userRepository.existsByEmail(request.email)) {
-            throw BusinessException(AuthErrorCode.EMAIL_DUPLICATED)
-        }
-
-        if (userRepository.existsByNickname(request.nickname)) {
-            throw BusinessException(AuthErrorCode.NICKNAME_DUPLICATED)
-        }
 
         val encodedPassword = passwordEncoder.encode(request.password)
 
@@ -46,7 +39,24 @@ class LocalAuthService(
             .userProfile(ProfileImageConstants.DEFAULT_PROFILE_IMAGE)
             .build()
 
-        val savedUser = userRepository.save(user)
+        val savedUser = try {
+            userRepository.save(user)
+        } catch (ex: Exception) {
+
+            val message = ex.message ?: ""
+
+            // DB UNIQUE 제약으로 판단 (email 충돌)
+            if (message.contains("uk_email", ignoreCase = true)) {
+                throw BusinessException(AuthErrorCode.EMAIL_DUPLICATED)
+            }
+
+            // nickname 충돌
+            if (message.contains("uk_nickname", ignoreCase = true)) {
+                throw BusinessException(AuthErrorCode.NICKNAME_DUPLICATED)
+            }
+
+            throw ex
+        }
 
         val tokens = authTokenService.generateTokens(savedUser)
 

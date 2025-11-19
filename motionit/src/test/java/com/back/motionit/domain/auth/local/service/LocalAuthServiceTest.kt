@@ -50,8 +50,6 @@ class LocalAuthServiceTest {
 
         val request = SignupRequest("test@email.com", "password123", "테스터")
 
-        given(userRepository.existsByEmail(anyString())).willReturn(false)
-        given(userRepository.existsByNickname(anyString())).willReturn(false)
         given(passwordEncoder.encode(anyString())).willReturn("encodedPassword")
 
         val mockUser = createMockUser()
@@ -73,11 +71,14 @@ class LocalAuthServiceTest {
     @DisplayName("이미 존재하는 이메일이면 EMAIL_DUPLICATED 예외 발생")
     fun signup_DuplicateEmail() {
         val request = SignupRequest("dup@email.com", "pw123", "닉네임")
-        given(userRepository.existsByEmail(anyString())).willReturn(true)
 
-        val ex = assertThrows(
-            BusinessException::class.java
-        ) { localAuthService.signup(request) }
+        given(userRepository.save(any())).willThrow(
+            RuntimeException("uk_email")
+        )
+
+        val ex = assertThrows(BusinessException::class.java) {
+            localAuthService.signup(request)
+        }
 
         assertEquals(AuthErrorCode.EMAIL_DUPLICATED, ex.errorCode)
     }
