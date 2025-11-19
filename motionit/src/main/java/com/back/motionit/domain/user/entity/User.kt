@@ -23,6 +23,8 @@ import jakarta.persistence.UniqueConstraint
     ]
 )
 class User(
+    id: Long? = null,
+
     @Column(name = "kakao_id")
     var kakaoId: Long? = null,
 
@@ -41,22 +43,21 @@ class User(
 
     @Column(name = "user_profile", length = 500)
     var userProfile: String? = null
-) : BaseEntity() {
+) : BaseEntity(id) {
 
     @Column(name = "refresh_token", length = 500)
     var refreshToken: String? = null
 
     // 테스트용 생성자 (id, nickname만 받는 경우)
     constructor(id: Long?, nickname: String) : this(
+        id = id,
         kakaoId = null,
         email = null,
         nickname = nickname,
         password = null,
         loginType = LoginType.LOCAL,
-        userProfile = null
-    ) {
-        this.id = id
-    }
+        userProfile = null,
+    )
 
     fun updateRefreshToken(refreshToken: String?) {
         this.refreshToken = refreshToken
@@ -81,6 +82,7 @@ class User(
     }
 
     class UserBuilder {
+        private var id: Long? = null
         private var kakaoId: Long? = null
         private var email: String? = null
         private var nickname: String = ""
@@ -88,6 +90,7 @@ class User(
         private var loginType: LoginType = LoginType.LOCAL
         private var userProfile: String? = null
 
+        fun id(id: Long?) = apply { this.id = id }
         fun kakaoId(kakaoId: Long?) = apply { this.kakaoId = kakaoId }
         fun email(email: String?) = apply { this.email = email }
         fun nickname(nickname: String) = apply { this.nickname = nickname }
@@ -95,6 +98,14 @@ class User(
         fun loginType(loginType: LoginType) = apply { this.loginType = loginType }
         fun userProfile(userProfile: String?) = apply { this.userProfile = userProfile }
 
-        fun build() = User(kakaoId, email, nickname, password, loginType, userProfile)
+        fun build() = User(
+            id,
+            kakaoId,
+            email,
+            nickname,
+            password,
+            loginType,
+            userProfile,
+        )
     }
 }
