@@ -3,6 +3,7 @@ package com.back.motionit.domain.auth.local.service
 import com.back.motionit.domain.auth.dto.LoginRequest
 import com.back.motionit.domain.auth.dto.SignupRequest
 import com.back.motionit.domain.auth.service.AuthTokenService
+import com.back.motionit.domain.user.dto.UserLoginProjection
 import com.back.motionit.domain.user.entity.LoginType
 import com.back.motionit.domain.user.entity.User
 import com.back.motionit.domain.user.repository.UserRepository
@@ -49,8 +50,6 @@ class LocalAuthServiceTest {
 
         val request = SignupRequest("test@email.com", "password123", "테스터")
 
-        given(userRepository.existsByEmail(anyString())).willReturn(false)
-        given(userRepository.existsByNickname(anyString())).willReturn(false)
         given(passwordEncoder.encode(anyString())).willReturn("encodedPassword")
 
         val mockUser = createMockUser()
@@ -72,11 +71,14 @@ class LocalAuthServiceTest {
     @DisplayName("이미 존재하는 이메일이면 EMAIL_DUPLICATED 예외 발생")
     fun signup_DuplicateEmail() {
         val request = SignupRequest("dup@email.com", "pw123", "닉네임")
-        given(userRepository.existsByEmail(anyString())).willReturn(true)
 
-        val ex = assertThrows(
-            BusinessException::class.java
-        ) { localAuthService.signup(request) }
+        given(userRepository.save(any())).willThrow(
+            RuntimeException("uk_email")
+        )
+
+        val ex = assertThrows(BusinessException::class.java) {
+            localAuthService.signup(request)
+        }
 
         assertEquals(AuthErrorCode.EMAIL_DUPLICATED, ex.errorCode)
     }
@@ -86,14 +88,26 @@ class LocalAuthServiceTest {
     fun login_Success() {
         val request = LoginRequest("test@email.com", "password123")
 
-        val mockUser = createMockUser()
+        val projection = UserLoginProjection(
+            id = 1L,
+            email = request.email,
+            password = "encodedPassword",
+            nickname = "테스터"
+        )
 
-        given(userRepository.findByEmail(request.email)).willReturn(Optional.of(mockUser))
+        given(userRepository.findLoginUserByEmail(request.email))
+            .willReturn(projection)
+
+        val mockUser = createMockUser()
+        given(userRepository.getReferenceById(1L))
+            .willReturn(mockUser)
+
         given(passwordEncoder.matches(anyString(), anyString()))
             .willReturn(true)
 
         val tokens = JwtTokenDto("Bearer", "access.token", "refresh.token", 3600L)
-        given(authTokenService.generateTokens(mockUser)).willReturn(tokens)
+        given(authTokenService.generateTokens(mockUser))
+            .willReturn(tokens)
 
         val result = localAuthService.login(request)
 

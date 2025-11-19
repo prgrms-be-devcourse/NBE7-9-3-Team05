@@ -28,13 +28,6 @@ class LocalAuthService(
 
     @Transactional
     fun signup(request: SignupRequest): AuthResponse {
-        if (userRepository.existsByEmail(request.email)) {
-            throw BusinessException(AuthErrorCode.EMAIL_DUPLICATED)
-        }
-
-        if (userRepository.existsByNickname(request.nickname)) {
-            throw BusinessException(AuthErrorCode.NICKNAME_DUPLICATED)
-        }
 
         val encodedPassword = passwordEncoder.encode(request.password)
 
@@ -46,28 +39,46 @@ class LocalAuthService(
             .userProfile(ProfileImageConstants.DEFAULT_PROFILE_IMAGE)
             .build()
 
-        val savedUser = userRepository.save(user)
+        val savedUser = try {
+            userRepository.save(user)
+        } catch (ex: Exception) {
+
+            val message = ex.message ?: ""
+
+            // DB UNIQUE 제약으로 판단 (email 충돌)
+            if (message.contains("uk_email", ignoreCase = true)) {
+                throw BusinessException(AuthErrorCode.EMAIL_DUPLICATED)
+            }
+
+            // nickname 충돌
+            if (message.contains("uk_nickname", ignoreCase = true)) {
+                throw BusinessException(AuthErrorCode.NICKNAME_DUPLICATED)
+            }
+
+            throw ex
+        }
 
         val tokens = authTokenService.generateTokens(savedUser)
 
         return buildAuthResponse(savedUser, tokens)
     }
 
-    @Transactional
     fun login(request: LoginRequest): AuthResponse {
-        val user = userRepository.findByEmail(request.email)
-            .orElseThrow { BusinessException(AuthErrorCode.LOGIN_FAILED) }
+        val projection = userRepository.findLoginUserByEmail(request.email)
+            ?: throw BusinessException(AuthErrorCode.LOGIN_FAILED)
 
-        if (!passwordEncoder.matches(request.password, user.password)) {
+        if (!passwordEncoder.matches(request.password, projection.password)) {
             throw BusinessException(AuthErrorCode.LOGIN_FAILED)
         }
 
-        val tokens = authTokenService.generateTokens(user)
+        val userRef = userRepository.getReferenceById(projection.id)
+
+        val tokens = authTokenService.generateTokens(userRef)
 
         requestContext.setCookie("accessToken", tokens.accessToken)
         requestContext.setCookie("refreshToken", tokens.refreshToken)
 
-        return buildAuthResponse(user, tokens)
+        return buildAuthResponse(userRef, tokens)
     }
 
     @Transactional

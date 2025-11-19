@@ -1,17 +1,14 @@
 package com.back.motionit.domain.user.entity
 
 import com.back.motionit.global.jpa.entity.BaseEntity
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
-import jakarta.persistence.EnumType
-import jakarta.persistence.Enumerated
-import jakarta.persistence.Table
-import jakarta.persistence.UniqueConstraint
+import jakarta.persistence.*
 
 @Entity
 @Table(
     name = "users",
     uniqueConstraints = [
+        UniqueConstraint(name = "uk_email", columnNames = ["email"]),
+        UniqueConstraint(name = "uk_nickname", columnNames = ["nickname"]),
         UniqueConstraint(
             name = "uk_login_type_email",
             columnNames = ["login_type", "email"]

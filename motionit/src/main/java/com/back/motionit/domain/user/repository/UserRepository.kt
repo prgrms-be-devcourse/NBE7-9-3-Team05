@@ -2,11 +2,9 @@ package com.back.motionit.domain.user.repository
 
 import com.back.motionit.domain.user.entity.User
 import org.springframework.data.jpa.repository.JpaRepository
-import java.util.Optional
+import java.util.*
 
-interface UserRepository : JpaRepository<User, Long> {
-
-    fun findByEmail(email: String): Optional<User>
+interface UserRepository : JpaRepository<User, Long>, UserRepositoryCustom {
 
     fun findByKakaoId(kakaoId: Long): Optional<User>
 

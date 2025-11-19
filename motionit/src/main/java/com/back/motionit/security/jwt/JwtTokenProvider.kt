@@ -2,8 +2,11 @@ package com.back.motionit.security.jwt
 
 import com.back.motionit.domain.user.entity.User
 import com.back.motionit.standard.ut.JwtUtil
+import io.jsonwebtoken.io.Decoders
+import io.jsonwebtoken.security.Keys
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
+import javax.crypto.SecretKey
 
 @Component
 class JwtTokenProvider(
@@ -17,34 +20,36 @@ class JwtTokenProvider(
     private val refreshTokenExpiration: Long
 ) {
 
+    private val secretKey: SecretKey =
+        Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret.trim()))
+
     fun generateAccessToken(user: User): String {
         return JwtUtil.Jwt.toString(
-            secret,
+            secretKey,
             accessTokenExpiration,
-            java.util.Map.of<String, Any?>("id", user.id, "nickname", user.nickname)
+            mapOf<String, Any>("id" to user.id!!, "nickname" to user.nickname)
         )
     }
 
     fun generateRefreshToken(user: User): String {
         return JwtUtil.Jwt.toString(
-            secret,
+            secretKey,
             refreshTokenExpiration,
-            java.util.Map.of<String, Any?>("id", user.id, "nickname", user.nickname)
+            mapOf<String, Any>("id" to user.id!!, "nickname" to user.nickname)
         )
     }
 
     fun payloadOrNull(jwt: String?): Map<String, Any?>? {
-        val payload = JwtUtil.Jwt.payloadOrNull(jwt, secret) ?: return null
+        val payload = JwtUtil.Jwt.payloadOrNull(jwt, secretKey) ?: return null
 
         val idNo = payload["id"] as Number?
         val id = idNo!!.toLong()
 
         val nickname = payload["nickname"] as String?
 
-        return java.util.Map.of<String, Any?>("id", id, "nickname", nickname)
+        return mapOf("id" to id, "nickname" to nickname)
     }
 
-    fun isExpired(jwt: String?): Boolean {
-        return JwtUtil.Jwt.isExpired(jwt, secret)
-    }
+    fun isExpired(jwt: String?): Boolean =
+        JwtUtil.Jwt.isExpired(jwt, secretKey)
 }

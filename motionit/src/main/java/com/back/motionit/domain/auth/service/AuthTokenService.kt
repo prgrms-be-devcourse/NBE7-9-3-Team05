@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 @Service
+@Transactional(readOnly = true)
 class AuthTokenService(
     private val jwtTokenProvider: JwtTokenProvider,
     private val userRepository: UserRepository,
@@ -41,7 +42,6 @@ class AuthTokenService(
         user.removeRefreshToken()
     }
 
-    @Transactional
     fun refreshAccessToken(refreshToken: String?): TokenRefreshResponse {
         // 1. refreshToken 존재 여부 확인
         if (refreshToken.isNullOrBlank()) {
