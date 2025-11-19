@@ -9,7 +9,9 @@ import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import java.util.*
 
-interface CommentRepository : JpaRepository<Comment, Long> {
+interface CommentRepository :
+    JpaRepository<Comment, Long>,
+    CommentQueryRepository {
 
     @Query(
         """

@@ -79,31 +79,18 @@ class CommentService(
 
     @Transactional(readOnly = true)
     fun list(roomId: Long, userId: Long, page: Int, size: Int): Page<CommentRes> {
+
         assertActiveRoomOrThrow(roomId)
         challengeAuthValidator.validateActiveParticipant(userId, roomId)
 
-        val user: User = userRepository.findById(userId)
-            .orElseThrow { BusinessException(CommentErrorCode.USER_NOT_FOUND) }
-
         val pageable: Pageable = PageRequest.of(page, size)
-        val comments: Page<Comment> =
-            commentRepository.findActiveByRoomIdWithAuthor(roomId, pageable)
-
-        if (comments.isEmpty) {
-            return comments.map { CommentRes.from(it, false) }
-        }
 
 
-        val commentIds: List<Long> = comments.content.map { requireNotNull(it.id) }
-
-
-        val likedCommentIds: Set<Long> =
-            commentLikeService.findLikedCommentIdsSafely(user, commentIds)
-
-        return comments.map { c ->
-            val isLiked = c.id?.let { likedCommentIds.contains(it) } ?: false
-            CommentRes.from(c, isLiked)
-        }
+        return commentRepository.findCommentsWithAuthorAndLike(
+            roomId = roomId,
+            userId = userId,
+            pageable = pageable,
+        )
     }
 
     @Transactional

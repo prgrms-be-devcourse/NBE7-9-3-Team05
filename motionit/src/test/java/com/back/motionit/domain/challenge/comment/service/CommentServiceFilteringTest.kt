@@ -90,7 +90,6 @@ class CommentServiceFilteringTest {
         return comment
     }
 
-    // CREATE용 가드 스텁
     private fun stubGuardsForCreateBasic() {
         `when`(
             challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID)
@@ -107,7 +106,6 @@ class CommentServiceFilteringTest {
             .thenReturn(Optional.of(author))
     }
 
-    // EDIT용 가드 스텁
     private fun stubGuardsForEditBasic(target: Comment) {
         `when`(
             challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID)
@@ -121,7 +119,6 @@ class CommentServiceFilteringTest {
         ).thenReturn(Optional.of(target))
     }
 
-    // ------------------------ CREATE (필터링) ------------------------
 
     @Test
     @DisplayName("create: ALLOW → 저장 성공")
