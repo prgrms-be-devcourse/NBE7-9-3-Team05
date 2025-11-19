@@ -98,8 +98,8 @@ class LocalAuthServiceTest {
             .willReturn(projection)
 
         val mockUser = createMockUser()
-        given(userRepository.findById(1L))
-            .willReturn(Optional.of(mockUser))
+        given(userRepository.getReferenceById(1L))
+            .willReturn(mockUser)
 
         given(passwordEncoder.matches(anyString(), anyString()))
             .willReturn(true)

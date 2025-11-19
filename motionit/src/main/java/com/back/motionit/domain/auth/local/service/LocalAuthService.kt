@@ -61,15 +61,14 @@ class LocalAuthService(
             throw BusinessException(AuthErrorCode.LOGIN_FAILED)
         }
 
-        val user = userRepository.findById(projection.id)
-            .orElseThrow { BusinessException(AuthErrorCode.USER_NOT_FOUND) }
+        val userRef = userRepository.getReferenceById(projection.id)
 
-        val tokens = authTokenService.generateTokens(user)
+        val tokens = authTokenService.generateTokens(userRef)
 
         requestContext.setCookie("accessToken", tokens.accessToken)
         requestContext.setCookie("refreshToken", tokens.refreshToken)
 
-        return buildAuthResponse(user, tokens)
+        return buildAuthResponse(userRef, tokens)
     }
 
     @Transactional
