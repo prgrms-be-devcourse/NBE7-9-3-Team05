@@ -3,6 +3,7 @@ package com.back.motionit.domain.auth.local.service
 import com.back.motionit.domain.auth.dto.LoginRequest
 import com.back.motionit.domain.auth.dto.SignupRequest
 import com.back.motionit.domain.auth.service.AuthTokenService
+import com.back.motionit.domain.user.dto.UserLoginProjection
 import com.back.motionit.domain.user.entity.LoginType
 import com.back.motionit.domain.user.entity.User
 import com.back.motionit.domain.user.repository.UserRepository
@@ -86,14 +87,26 @@ class LocalAuthServiceTest {
     fun login_Success() {
         val request = LoginRequest("test@email.com", "password123")
 
-        val mockUser = createMockUser()
+        val projection = UserLoginProjection(
+            id = 1L,
+            email = request.email,
+            password = "encodedPassword",
+            nickname = "테스터"
+        )
 
-        given(userRepository.findByEmail(request.email)).willReturn(Optional.of(mockUser))
+        given(userRepository.findLoginUserByEmail(request.email))
+            .willReturn(projection)
+
+        val mockUser = createMockUser()
+        given(userRepository.findById(1L))
+            .willReturn(Optional.of(mockUser))
+
         given(passwordEncoder.matches(anyString(), anyString()))
             .willReturn(true)
 
         val tokens = JwtTokenDto("Bearer", "access.token", "refresh.token", 3600L)
-        given(authTokenService.generateTokens(mockUser)).willReturn(tokens)
+        given(authTokenService.generateTokens(mockUser))
+            .willReturn(tokens)
 
         val result = localAuthService.login(request)
 

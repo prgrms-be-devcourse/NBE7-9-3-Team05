@@ -54,12 +54,15 @@ class LocalAuthService(
     }
 
     fun login(request: LoginRequest): AuthResponse {
-        val user = userRepository.findByEmail(request.email)
-            .orElseThrow { BusinessException(AuthErrorCode.LOGIN_FAILED) }
+        val projection = userRepository.findLoginUserByEmail(request.email)
+            ?: throw BusinessException(AuthErrorCode.LOGIN_FAILED)
 
-        if (!passwordEncoder.matches(request.password, user.password)) {
+        if (!passwordEncoder.matches(request.password, projection.password)) {
             throw BusinessException(AuthErrorCode.LOGIN_FAILED)
         }
+
+        val user = userRepository.findById(projection.id)
+            .orElseThrow { BusinessException(AuthErrorCode.USER_NOT_FOUND) }
 
         val tokens = authTokenService.generateTokens(user)
 
