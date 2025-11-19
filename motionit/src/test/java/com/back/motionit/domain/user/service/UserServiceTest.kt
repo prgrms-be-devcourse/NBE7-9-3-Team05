@@ -41,13 +41,13 @@ class UserServiceTest {
     @BeforeEach
     fun setUp() {
         testUser = User.builder()
+            .id(1L)
             .email("test@example.com")
             .nickname("testUser")
             .password("password123")
             .loginType(LoginType.LOCAL)
             .userProfile("profiles/test.png")
             .build()
-        testUser.id = 1L
     }
 
     @Nested
