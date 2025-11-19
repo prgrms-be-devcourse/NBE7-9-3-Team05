@@ -132,6 +132,7 @@ val coverageExcludes = listOf(
     "**/api/**",
     "**/constants/**",
     "**/error/**",
+    "**/init/**",
     "**/exception/**",
     "**/vo/**",
     "**/Q*.*",                 // Querydsl 생성물
