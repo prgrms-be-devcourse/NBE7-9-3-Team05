@@ -64,10 +64,9 @@ class CommentControllerIntegrationTest : BaseIntegrationTest() {
 
     @BeforeEach
     fun setUp() {
-        // 1) FK 끔
+
         jdbc.execute("SET REFERENTIAL_INTEGRITY FALSE")
 
-        // 2) 테이블 비우기 + 아이덴티티 리셋
         try {
             jdbc.execute("TRUNCATE TABLE room_comments RESTART IDENTITY")
         } catch (_: Exception) {
@@ -81,10 +80,8 @@ class CommentControllerIntegrationTest : BaseIntegrationTest() {
         } catch (_: Exception) {
         }
 
-        // 3) FK 켬
         jdbc.execute("SET REFERENTIAL_INTEGRITY TRUE")
 
-        // 4) 시드 (user #1)
         val u1 = User.builder()
             .email("u1@test.com")
             .nickname("u1")
@@ -232,7 +229,6 @@ class CommentControllerIntegrationTest : BaseIntegrationTest() {
     @Test
     @Throws(Exception::class)
     fun wrong_access_on_edit() {
-        // user #2 생성
         val u2 = User.builder()
             .email("u2@test.com")
             .nickname("u2")
@@ -245,7 +241,6 @@ class CommentControllerIntegrationTest : BaseIntegrationTest() {
         // room #1 참조
         val roomRef = roomRepository.getReferenceById(roomId)
 
-        // author=2인 댓글 직접 저장 (Kotlin Comment 엔티티 사용)
         val comment = Comment(
             deletedAt = null,
             challengeRoom = roomRef,
@@ -257,7 +252,6 @@ class CommentControllerIntegrationTest : BaseIntegrationTest() {
         commentRepository.save(comment)
         val id = requireNotNull(comment.id)
 
-        // 현재 컨트롤러는 로그인 유저(id=1) 기준 → WRONG_ACCESS 기대
         authenticateAs(user)
 
         mockMvc.perform(
@@ -273,7 +267,6 @@ class CommentControllerIntegrationTest : BaseIntegrationTest() {
     @DisplayName("검증에러 400 + NOT_FOUND 404 매핑 확인")
     @Throws(Exception::class)
     fun validation_and_notfound_cases() {
-        // 400: POST content=""
         mockMvc.perform(
             post(BASE, roomId)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -282,10 +275,8 @@ class CommentControllerIntegrationTest : BaseIntegrationTest() {
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.resultCode").value("C-002"))
 
-        // 시드 1개
         val id = createComment(roomId, "ok")
 
-        // 400: PATCH content=""
         mockMvc.perform(
             patch(ONE, roomId, id)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -294,7 +285,6 @@ class CommentControllerIntegrationTest : BaseIntegrationTest() {
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.resultCode").value("C-002"))
 
-        // 404: PATCH 잘못된 commentId
         mockMvc.perform(
             patch(ONE, roomId, 999L)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -303,7 +293,6 @@ class CommentControllerIntegrationTest : BaseIntegrationTest() {
             .andExpect(status().isNotFound)
             .andExpect(jsonPath("$.resultCode").value("M-102"))
 
-        // 404: DELETE 잘못된 commentId
         mockMvc.perform(delete(ONE, roomId, 999L))
             .andExpect(status().isNotFound)
             .andExpect(jsonPath("$.resultCode").value("M-102"))
@@ -313,13 +302,11 @@ class CommentControllerIntegrationTest : BaseIntegrationTest() {
     @DisplayName("페이지네이션 정렬(내림차순) + 마지막/빈 페이지 + soft-delete 제외")
     @Throws(Exception::class)
     fun pagination_and_softdelete_behaviour() {
-        // 7개 시드 (id 1..7)
         val ids = mutableListOf<Long>()
         for (i in 0 until 7) {
             ids.add(createComment(roomId, "c$i"))
         }
 
-        // page=0,size=5 확인 (정렬: 최신 먼저)
         mockMvc.perform(
             get(BASE, roomId)
                 .param("page", "0")
@@ -331,11 +318,9 @@ class CommentControllerIntegrationTest : BaseIntegrationTest() {
             .andExpect(jsonPath("$.data.totalPages").value(2))
             .andExpect(jsonPath("$.data.number").value(0))
             .andExpect(jsonPath("$.data.content.length()").value(5))
-            // 내림차순: 첫 요소 id가 마지막 요소 id보다 커야 함 (단순 존재만 체크)
             .andExpect(jsonPath("$.data.content[0].id").exists())
             .andExpect(jsonPath("$.data.content[4].id").exists())
 
-        // page=1,size=5 (마지막 페이지: 2개)
         mockMvc.perform(
             get(BASE, roomId)
                 .param("page", "1")
@@ -347,7 +332,6 @@ class CommentControllerIntegrationTest : BaseIntegrationTest() {
             .andExpect(jsonPath("$.data.content.length()").value(2))
             .andExpect(jsonPath("$.data.last").value(true))
 
-        // page=2,size=5 (빈 페이지)
         mockMvc.perform(
             get(BASE, roomId)
                 .param("page", "2")
@@ -358,7 +342,6 @@ class CommentControllerIntegrationTest : BaseIntegrationTest() {
             .andExpect(jsonPath("$.data.content.length()").value(0))
             .andExpect(jsonPath("$.data.empty").value(true))
 
-        // soft-delete: 하나 삭제 → 목록에서 제외됨 + totalElements 감소
         val toDelete = ids[0]
         mockMvc.perform(delete(ONE, roomId, toDelete))
             .andExpect(status().isOk)
@@ -372,7 +355,6 @@ class CommentControllerIntegrationTest : BaseIntegrationTest() {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.resultCode").value("M-200"))
             .andExpect(jsonPath("$.data.totalElements").value(6))
-            // 삭제된 id가 목록에 없는지 확인
             .andExpect(
                 jsonPath(
                     "\$.data.content[*].id",

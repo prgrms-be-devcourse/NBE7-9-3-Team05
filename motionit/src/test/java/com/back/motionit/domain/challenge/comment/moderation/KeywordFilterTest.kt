@@ -11,11 +11,9 @@ class KeywordFilterTest {
     @Test
     @DisplayName("BLOCK: 강한 욕설은 차단된다(씨발/시발/18/개새끼 등)")
     fun block_basic() {
-        // 점/공백 제거 후 '씨발' 매칭
         assertThat(KeywordFilter.decide("스쿼트 그렇게 하는 거 아니라고 씨 바..."))
             .isEqualTo(KeywordFilter.Decision.BLOCK)
 
-        // 시발 계열은 BLOCK 리스트에 포함되어야 함
         assertThat(KeywordFilter.decide("시발 뭐함?"))
             .isEqualTo(KeywordFilter.Decision.BLOCK)
         assertThat(KeywordFilter.decide("시.발 같은 소리"))
@@ -25,7 +23,6 @@ class KeywordFilterTest {
         assertThat(KeywordFilter.decide("씨1바 그만해"))
             .isEqualTo(KeywordFilter.Decision.BLOCK)
 
-        // 숫자형 욕설
         assertThat(KeywordFilter.decide("개 못해 18놈아"))
             .isEqualTo(KeywordFilter.Decision.BLOCK)
 
@@ -38,7 +35,6 @@ class KeywordFilterTest {
     @Test
     @DisplayName("BLOCK: 화이트리스트 마스킹 후 남은 욕설은 차단")
     fun block_after_whitelist_mask() {
-        // '병신도'는 제거되지만 뒤의 '시발'은 BLOCK
         assertThat(KeywordFilter.decide("병신도부터 문제였어 시발"))
             .isEqualTo(KeywordFilter.Decision.BLOCK)
 

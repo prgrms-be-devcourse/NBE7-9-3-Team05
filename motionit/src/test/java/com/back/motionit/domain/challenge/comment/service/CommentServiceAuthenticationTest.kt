@@ -1,10 +1,10 @@
 package com.back.motionit.domain.challenge.comment.service
-
 import com.back.motionit.domain.challenge.comment.dto.CommentCreateReq
 import com.back.motionit.domain.challenge.comment.dto.CommentEditReq
 import com.back.motionit.domain.challenge.comment.dto.CommentRes
 import com.back.motionit.domain.challenge.comment.entity.Comment
 import com.back.motionit.domain.challenge.comment.moderation.CommentModeration
+import com.back.motionit.domain.challenge.comment.repository.CommentQueryRepository
 import com.back.motionit.domain.challenge.comment.repository.CommentRepository
 import com.back.motionit.domain.challenge.like.repository.CommentLikeRepository
 import com.back.motionit.domain.challenge.like.service.CommentLikeService
@@ -41,6 +41,9 @@ class CommentServiceAuthenticationTest {
 
     @Mock
     lateinit var commentRepository: CommentRepository
+
+    @Mock
+    lateinit var commentQueryRepository: CommentQueryRepository
 
     @Mock
     lateinit var challengeRoomRepository: ChallengeRoomRepository
@@ -125,7 +128,6 @@ class CommentServiceAuthenticationTest {
                 .`when`(commentModeration)
                 .assertClean("hello")
 
-            // save 시 id + 날짜 부여
             Mockito.`when`(commentRepository.save(Mockito.any(Comment::class.java))).thenAnswer { inv ->
                 val saved = inv.getArgument<Comment>(0)
                 val now = LocalDateTime.now()
@@ -194,22 +196,22 @@ class CommentServiceAuthenticationTest {
                 challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID)
             ).thenReturn(Mockito.mock(ChallengeParticipant::class.java))
 
-            Mockito.`when`(userRepository.findById(USER_ID))
-                .thenReturn(Optional.of(author))
-
             val pageable: Pageable = PageRequest.of(0, 20)
+            val emptyPage: Page<CommentRes> = Page.empty(pageable)
 
+            // ✅ matcher 없이, 동일한 값으로만 스텁
             Mockito.`when`(
-                commentRepository.findActiveByRoomIdWithAuthor(
+                commentRepository.findCommentsWithAuthorAndLike(
                     ROOM_ID,
-                    pageable
+                    USER_ID,
+                    pageable,
                 )
-            ).thenReturn(Page.empty(pageable))
+            ).thenReturn(emptyPage)
 
             val page: Page<CommentRes> = commentService.list(ROOM_ID, USER_ID, 0, 20)
 
             assertThat(page.totalElements).isZero()
-            Mockito.verifyNoInteractions(commentLikeService)
+            Mockito.verifyNoInteractions(commentLikeService, commentLikeRepository, userRepository)
         }
 
         @Test
@@ -222,38 +224,30 @@ class CommentServiceAuthenticationTest {
                 challengeAuthValidator.validateActiveParticipant(USER_ID, ROOM_ID)
             ).thenReturn(Mockito.mock(ChallengeParticipant::class.java))
 
-            Mockito.`when`(userRepository.findById(USER_ID))
-                .thenReturn(Optional.of(author))
-
             val c1 = buildActiveComment(COMMENT_ID, mockRoom, author, "c1")
             val c2 = buildActiveComment(COMMENT_ID + 1, mockRoom, author, "c2")
 
             val pageable: Pageable = PageRequest.of(0, 20)
 
+            val res1 = CommentRes.from(c1, true)
+            val res2 = CommentRes.from(c2, false)
+            val stubPage: Page<CommentRes> = PageImpl(listOf(res1, res2), pageable, 2)
+
             Mockito.`when`(
-                commentRepository.findActiveByRoomIdWithAuthor(
+                commentRepository.findCommentsWithAuthorAndLike(
                     ROOM_ID,
-                    pageable
+                    USER_ID,
+                    pageable,
                 )
-            ).thenReturn(PageImpl(listOf(c1, c2), pageable, 2))
-
-            val expectedIds = listOf(COMMENT_ID, COMMENT_ID + 1)
-
-            Mockito.`when`(
-                commentLikeService.findLikedCommentIdsSafely(
-                    author,
-                    expectedIds
-                )
-            ).thenReturn(setOf(COMMENT_ID))
+            ).thenReturn(stubPage)
 
             val page: Page<CommentRes> = commentService.list(ROOM_ID, USER_ID, 0, 20)
 
             assertThat(page.totalElements).isEqualTo(2)
-
-            Mockito.verify(commentLikeService, Mockito.times(1))
-                .findLikedCommentIdsSafely(author, expectedIds)
             assertThat(page.content[0].liked).isTrue()
             assertThat(page.content[1].liked).isFalse()
+
+            Mockito.verifyNoInteractions(commentLikeService, commentLikeRepository)
         }
     }
 

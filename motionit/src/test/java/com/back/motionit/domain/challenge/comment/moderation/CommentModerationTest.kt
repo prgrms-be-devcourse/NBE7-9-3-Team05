@@ -18,8 +18,7 @@ class CommentModerationTest {
         }
             .isInstanceOf(BusinessException::class.java)
             .hasMessageContaining(CommentErrorCode.INAPPROPRIATE_CONTENT_BLOCK.message)
-        // 혹은 .getMessage() 쓰고 싶으면:
-        // .hasMessageContaining(CommentErrorCode.INAPPROPRIATE_CONTENT_BLOCK.getMessage())
+
     }
 
     @Test
