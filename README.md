@@ -4,6 +4,8 @@
 같은 영상으로 동료들과 함께 운동하며 도전하고,
 진행 상황을 공유하고 서로 응원하며
 운동 습관을 형성해 나가는 AI & 소셜 운동 챌린지 서비스
+>
+> ※ 본 프로젝트는 Java 기반에서 Kotlin 기반으로 전환되었습니다.
 > 
 ---
 
@@ -11,6 +13,7 @@
 
 * **프로젝트 이름:** Together Motionit
 * **한줄 요약:**  AI와 소셜 기능을 결합한 홈트 챌린지 플랫폼
+
 
 ## 🛠️ 기술 스택
 <img src="https://img.shields.io/badge/Kotlin-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white"/> <img src="https://img.shields.io/badge/JaCoCo-C41E3A?style=for-the-badge&logo=codecov&logoColor=white"/> <img src="https://img.shields.io/badge/Blue--Green Deployment-1E90FF?style=for-the-badge&logo=azurepipelines&logoColor=white"/> <img src="https://img.shields.io/badge/Grafana-F46800?style=for-the-badge&logo=grafana&logoColor=white"/> <img src="https://img.shields.io/badge/k6-7D64FF?style=for-the-badge&logo=k6&logoColor=white"/> <img src="https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white"/> <img src="https://img.shields.io/badge/Spring Boot-6DB33F?style=for-the-badge&logo=spring-boot&logoColor=white"/> <img src="https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white"/> <img src="https://img.shields.io/badge/WebSocket-010101?style=for-the-badge&logo=socketdotio&logoColor=white"/> <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white"/> <img src="https://img.shields.io/badge/Cloud SQL-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white"/> <img src="https://img.shields.io/badge/AWS EC2-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white"/> <img src="https://img.shields.io/badge/AWS S3-569A31?style=for-the-badge&logo=amazons3&logoColor=white"/> 
@@ -141,9 +144,7 @@
 <summary><b>아키텍처 다이어그램 보기</b></summary>
 
 <br/>
-
-<img width="1159" height="462" alt="architecture" src="https://github.com/<USER>/<REPO>/blob/main/docs/architecture.png?raw=true" />
-<img width="1157" height="472" alt="image" src="https://github.com/user-attachments/assets/0ba51297-8099-44b3-a493-e5355a417efa" />
+<img width="2033" height="1373" alt="image" src="https://github.com/user-attachments/assets/e75ce853-2d46-4d87-b23a-cfe3d3e3c98c" />
 
 </details>
 
