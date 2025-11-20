@@ -13,11 +13,11 @@
 * **한줄 요약:**  AI와 소셜 기능을 결합한 홈트 챌린지 플랫폼
 
 ## 🛠️ 기술 스택
-<img src="https://img.shields.io/badge/Kotlin-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white"/> <img src="https://img.shields.io/badge/JaCoCo-C41E3A?style=for-the-badge&logo=codecov&logoColor=white"/> <img src="https://img.shields.io/badge/Blue--Green Deployment-1E90FF?style=for-the-badge&logo=azurepipelines&logoColor=white"/> <img src="https://img.shields.io/badge/Grafana-F46800?style=for-the-badge&logo=grafana&logoColor=white"/> <img src="https://img.shields.io/badge/k6-7D64FF?style=for-the-badge&logo=k6&logoColor=white"/> <img src="https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white"/> <img src="https://img.shields.io/badge/Spring Boot-6DB33F?style=for-the-badge&logo=spring-boot&logoColor=white"/> <img src="https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white"/> <img src="https://img.shields.io/badge/WebSocket-010101?style=for-the-badge&logo=socketdotio&logoColor=white"/>
+<img src="https://img.shields.io/badge/Kotlin-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white"/> <img src="https://img.shields.io/badge/JaCoCo-C41E3A?style=for-the-badge&logo=codecov&logoColor=white"/> <img src="https://img.shields.io/badge/Blue--Green Deployment-1E90FF?style=for-the-badge&logo=azurepipelines&logoColor=white"/> <img src="https://img.shields.io/badge/Grafana-F46800?style=for-the-badge&logo=grafana&logoColor=white"/> <img src="https://img.shields.io/badge/k6-7D64FF?style=for-the-badge&logo=k6&logoColor=white"/> <img src="https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white"/> <img src="https://img.shields.io/badge/Spring Boot-6DB33F?style=for-the-badge&logo=spring-boot&logoColor=white"/> <img src="https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white"/> <img src="https://img.shields.io/badge/WebSocket-010101?style=for-the-badge&logo=socketdotio&logoColor=white"/> <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white"/> <img src="https://img.shields.io/badge/Cloud SQL-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white"/> <img src="https://img.shields.io/badge/AWS EC2-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white"/> <img src="https://img.shields.io/badge/AWS S3-569A31?style=for-the-badge&logo=amazons3&logoColor=white"/> 
 
 <img src="https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white"/>
 
-<img src="https://img.shields.io/badge/JUnit5-25A162?style=for-the-badge&logo=junit5&logoColor=white"/> <img src="https://img.shields.io/badge/OpenAPI-6BA539?style=for-the-badge&logo=openapiinitiative&logoColor=white"/> <img src="https://img.shields.io/badge/Swagger-85EA2D?style=for-the-badge&logo=swagger&logoColor=black"/>
+<img src="https://img.shields.io/badge/JUnit5-25A162?style=for-the-badge&logo=junit5&logoColor=white"/> <img src="https://img.shields.io/badge/OpenAPI-6BA539?style=for-the-badge&logo=openapiinitiative&logoColor=white"/> <img src="https://img.shields.io/badge/YouTube Data API-FF0000?style=for-the-badge&logo=youtube&logoColor=white"/> <img src="https://img.shields.io/badge/Swagger-85EA2D?style=for-the-badge&logo=swagger&logoColor=black"/>
 
 ---
 
@@ -27,7 +27,7 @@
 | :----------------------------------------------------: | :----------------------------------------------------: | :----------------------------------------------------: | :----------------------------------------------------: | :----------------------------------------------------: | :----------------------------------------------------: |
 | **[정한영](https://github.com/gksdud1109)** | **[김나현](https://github.com/BE9-KNH)** | **[김현수](https://github.com/lambsteak-dev)** | **[박민형](https://github.com/minibr)** | **[이민우](https://github.com/LeeMinwoo115)** | **[이혜지](https://github.com/heygeeji)** |
 | `FE·BE` | `FE·BE` | `FE·BE` | `FE·BE` | `FE·BE` | `FE·BE` |
-| 팀장<br/>JPA Entity 설계<br/>운동방 참여/탈퇴<br/>미션 영상 게시<br/>YouTube API 연동 | 좋아요 기능 구현<br/>중복 방지 로직 | 댓글 CRUD<br/>욕설 필터링 구현 | 공통 클래스 설계<br/>JWT 로그인<br/>AI 메시지<br/>내정보 페이지 | 운동방 CRUD<br/>WebSocket 처리<br/>프로젝트 발표 | 소셜로그인<br/>(OAuth2.0)<br/>인증/인가<br/>토큰 갱신 로직 |
+| 팀장<br/>JPA Entity 설계<br/>운동방 참여/탈퇴<br/>미션 영상 게시<br/>YouTube API 연동<br/>k6 테스트 구현 및 시행<br/>프로젝트 발표 | 좋아요 기능 구현<br/>중복 방지 로직 | 댓글 CRUD<br/>욕설 필터링 구현 | 공통 클래스 설계<br/>JWT 로그인<br/>AI 메시지<br/>내정보 페이지<br/>Blue Green 무중단 배포 | 운동방 CRUD<br/>WebSocket 처리<br/> | 소셜로그인<br/>(OAuth2.0)<br/>인증/인가<br/>토큰 갱신 로직 |
 
 ---
 
@@ -174,6 +174,30 @@
 </details>
 
 ---
+
+## 🚀 Blue–Green 무중단 배포
+
+GitHub Actions → Docker → EC2 환경에서  
+Blue–Green 전략을 이용한 무중단 배포
+
+- Blue / Green 두 컨테이너를 번갈아 가동
+- 신규 버전 헬스체크 성공 시 NGINX가 트래픽 전환
+- 장애 시 이전 버전으로 즉시 롤백 가능
+
+---
+
+## 🧪 JaCoCo 코드 커버리지 측정
+
+PR 생성 시 GitHub Actions가 자동으로 테스트를 실행  
+JaCoCo 커버리지를 계산해 PR에 댓글로 출력
+
+- Line / Branch Coverage 자동 측정  
+- 테스트 누락 구간 시각화  
+- 코드 품질 관리에 활용
+
+
+---
+
 ## 🧭 개발 컨벤션
 
 ### 브랜치 전략
@@ -212,10 +236,6 @@ fix: JWT 토큰 만료 오류 수정
 refactor: 댓글 서비스 로직 개선
 ```
 
-### 코드 컨벤션
-- **Naver Checkstyle Rule** 준수
-- Line Separator: LF (Unix style)
-- 들여쓰기: Tab (4 spaces)
 
 
 
