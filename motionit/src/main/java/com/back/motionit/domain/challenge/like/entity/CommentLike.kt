@@ -12,14 +12,20 @@ import jakarta.persistence.*
         UniqueConstraint(name = "unique_like", columnNames = ["comment_id", "user_id"])
     ]
 )
-open class CommentLike(
+open class CommentLike() : BaseEntity() { // 기본 생성자 추가
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "comment_id", nullable = false)
-    var comment: Comment,
+    open lateinit var comment: Comment
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
-    var user: User
-) : BaseEntity(){
+    open lateinit var user: User
+
+    constructor(comment: Comment, user: User) : this() {
+        this.comment = comment
+        this.user = user
+    }
+
     companion object {
         fun create(comment: Comment, user: User) = CommentLike(comment, user)
     }
