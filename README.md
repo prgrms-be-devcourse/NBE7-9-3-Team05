@@ -16,7 +16,7 @@
 
 
 ## 🛠️ 기술 스택
-<img src="https://img.shields.io/badge/Kotlin-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white"/> <img src="https://img.shields.io/badge/JaCoCo-C41E3A?style=for-the-badge&logo=codecov&logoColor=white"/> <img src="https://img.shields.io/badge/Blue--Green Deployment-1E90FF?style=for-the-badge&logo=azurepipelines&logoColor=white"/> <img src="https://img.shields.io/badge/Grafana-F46800?style=for-the-badge&logo=grafana&logoColor=white"/> <img src="https://img.shields.io/badge/k6-7D64FF?style=for-the-badge&logo=k6&logoColor=white"/> <img src="https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white"/> <img src="https://img.shields.io/badge/Spring Boot-6DB33F?style=for-the-badge&logo=spring-boot&logoColor=white"/> <img src="https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white"/> <img src="https://img.shields.io/badge/WebSocket-010101?style=for-the-badge&logo=socketdotio&logoColor=white"/> <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white"/> <img src="https://img.shields.io/badge/Cloud SQL-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white"/> <img src="https://img.shields.io/badge/AWS EC2-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white"/> <img src="https://img.shields.io/badge/AWS S3-569A31?style=for-the-badge&logo=amazons3&logoColor=white"/> 
+<img src="https://img.shields.io/badge/Kotlin-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white"/> <img src="https://img.shields.io/badge/JaCoCo-C41E3A?style=for-the-badge&logo=codecov&logoColor=white"/> <img src="https://img.shields.io/badge/Blue--Green Deployment-1E90FF?style=for-the-badge&logo=azurepipelines&logoColor=white"/> <img src="https://img.shields.io/badge/Grafana-F46800?style=for-the-badge&logo=grafana&logoColor=white"/> <img src="https://img.shields.io/badge/Prometheus-E6522C?style=for-the-badge&logo=prometheus&logoColor=white"/> <img src="https://img.shields.io/badge/k6-7D64FF?style=for-the-badge&logo=k6&logoColor=white"/> <img src="https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white"/> <img src="https://img.shields.io/badge/Spring Boot-6DB33F?style=for-the-badge&logo=spring-boot&logoColor=white"/> <img src="https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white"/> <img src="https://img.shields.io/badge/WebSocket-010101?style=for-the-badge&logo=socketdotio&logoColor=white"/> <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white"/> <img src="https://img.shields.io/badge/Cloud SQL-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white"/> <img src="https://img.shields.io/badge/AWS EC2-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white"/> <img src="https://img.shields.io/badge/AWS S3-569A31?style=for-the-badge&logo=amazons3&logoColor=white"/> 
 
 <img src="https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white"/>
 
@@ -30,7 +30,7 @@
 | :----------------------------------------------------: | :----------------------------------------------------: | :----------------------------------------------------: | :----------------------------------------------------: | :----------------------------------------------------: | :----------------------------------------------------: |
 | **[정한영](https://github.com/gksdud1109)** | **[김나현](https://github.com/BE9-KNH)** | **[김현수](https://github.com/lambsteak-dev)** | **[박민형](https://github.com/minibr)** | **[이민우](https://github.com/LeeMinwoo115)** | **[이혜지](https://github.com/heygeeji)** |
 | `FE·BE` | `FE·BE` | `FE·BE` | `FE·BE` | `FE·BE` | `FE·BE` |
-| 팀장<br/>JPA Entity 설계<br/>운동방 참여/탈퇴<br/>미션 영상 게시<br/>YouTube API 연동<br/>프로메테우스,그라파나,k6 테스트 구현 및 시행<br/>코틀린 전환<br/>프로젝트 발표 | 좋아요 기능 구현<br/>중복 방지 로직<br/>코틀린 전환<br/> | 댓글 CRUD<br/>욕설 필터링 구현<br/>코틀린 전환| 공통 클래스 설계<br/>CICD 구축<br/>Blue Green 무중단 배포<br/>JWT 로그인<br/>AI 메시지<br/>내정보 페이지 | 운동방 CRUD<br/>WebSocket 처리<br/>코틀린 전환<br/>Jacoco 코드 커버리지 테스트 설계<br/> | 소셜로그인<br/>(OAuth2.0)<br/>인증/인가<br/>토큰 갱신 로직<br/>코틀린 전환<br/> |
+| 팀장<br/>JPA Entity 설계<br/>운동방 참여/탈퇴<br/>미션 영상 게시<br/>YouTube API 연동<br/>모니터링 환경 구축<br/>k6 부하테스트 결과 분석<br/>코틀린 전환<br/>프로젝트 발표 | 좋아요 기능 구현<br/>중복 방지 로직<br/>코틀린 전환<br/> | 댓글 CRUD<br/>욕설 필터링 구현<br/>코틀린 전환| 공통 클래스 설계<br/>CICD 구축<br/>Blue Green 무중단 배포<br/>JWT 로그인<br/>AI 메시지<br/>내정보 페이지 | 운동방 CRUD<br/>WebSocket 처리<br/>코틀린 전환<br/>Jacoco 코드 커버리지 테스트 설계<br/> | 소셜로그인<br/>(OAuth2.0)<br/>인증/인가<br/>토큰 갱신 로직<br/>코틀린 전환<br/> |
 
 ---
 
@@ -196,6 +196,34 @@ JaCoCo 커버리지를 계산해 PR에 댓글로 출력
 - 테스트 누락 구간 시각화  
 - 코드 품질 관리에 활용
 
+
+---
+
+## 🖥️ 모니터링 환경 구성
+
+- 대시보드는 커스텀으로 구현
+
+<details>
+<summary><b>운영서버 모니터링 화면</b></summary>
+
+<br/>
+<img width="2527" height="972" alt="image" src="https://github.com/user-attachments/assets/ea68dd41-bd19-4cd3-9b2b-9ebe8cb60b9e" />
+
+</details>
+
+<details>
+<summary><b>로컬환경 단일 API 부하테스트 결과 모니터링 화면</b></summary>
+
+<br/>
+<img width="2560" height="1324" alt="스크린샷 2025-11-19 19 24 07" src="https://github.com/user-attachments/assets/b0a469f9-3883-4f2c-9c10-a0fc08df3e35" />
+</details>
+
+<details>
+<summary><b>부하테스트 시행 결과 xk6 리포트</b></summary>
+
+<br/>
+<img width="1263" height="1321" alt="image" src="https://github.com/user-attachments/assets/8fe69d25-3aa9-47ae-91b7-9fcd13ba8f07" />
+</details>
 
 ---
 
