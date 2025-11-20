@@ -13,7 +13,7 @@
 * **한줄 요약:**  AI와 소셜 기능을 결합한 홈트 챌린지 플랫폼
 
 ## 🛠️ 기술 스택
-<img src="https://img.shields.io/badge/Spring Boot-6DB33F?style=for-the-badge&logo=spring-boot&logoColor=white"/> <img src="https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white"/> <img src="https://img.shields.io/badge/WebSocket-010101?style=for-the-badge&logo=socketdotio&logoColor=white"/>
+<img src="https://img.shields.io/badge/Kotlin-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white"/> <img src="https://img.shields.io/badge/JaCoCo-C41E3A?style=for-the-badge&logo=codecov&logoColor=white"/> <img src="https://img.shields.io/badge/Blue--Green Deployment-1E90FF?style=for-the-badge&logo=azurepipelines&logoColor=white"/> <img src="https://img.shields.io/badge/Grafana-F46800?style=for-the-badge&logo=grafana&logoColor=white"/> <img src="https://img.shields.io/badge/k6-7D64FF?style=for-the-badge&logo=k6&logoColor=white"/> <img src="https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white"/> <img src="https://img.shields.io/badge/Spring Boot-6DB33F?style=for-the-badge&logo=spring-boot&logoColor=white"/> <img src="https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white"/> <img src="https://img.shields.io/badge/WebSocket-010101?style=for-the-badge&logo=socketdotio&logoColor=white"/>
 
 <img src="https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white"/>
 
@@ -42,6 +42,9 @@
 *  YouTube Data API 연동
 *  AI 응원 메시지 자동 생성(OpenAI API 연동)
 *  WebSocket 실시간 기능
+*  Blue Green 무중단 배포
+*  Jacoco 코드 커버리지 측정
+
 
 ---
 
@@ -132,15 +135,14 @@
 
 ---
 
-## 🛠 아키텍처 & 기술 스택
+## 🛠 아키텍처
 
 <details>
 <summary><b>아키텍처 다이어그램 보기</b></summary>
 
 <br/>
 
-<img width="1159" height="462" alt="image" src="https://github.com/user-attachments/assets/c9d133bb-8839-4410-9b7d-8430f7a250f4" />
-
+<img width="1159" height="462" alt="architecture" src="https://github.com/<USER>/<REPO>/blob/main/docs/architecture.png?raw=true" />
 <img width="1157" height="472" alt="image" src="https://github.com/user-attachments/assets/0ba51297-8099-44b3-a493-e5355a417efa" />
 
 </details>
