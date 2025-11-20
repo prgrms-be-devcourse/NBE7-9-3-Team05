@@ -17,7 +17,11 @@ class WebMvcConfig(
 
     override fun addCorsMappings(registry: CorsRegistry) {
         registry.addMapping("/**")
-            .allowedOriginPatterns("http://localhost:3000")
+            .allowedOriginPatterns(
+                "http://localhost:3000",
+                "https://motionit.vercel.app",
+                "http://52.78.181.248.nip.io"
+            )
             .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
             .allowedHeaders("*")
             .allowCredentials(true)

@@ -28,6 +28,11 @@ class CustomAuthenticationFilter(
     companion object {
         private const val AUTH_PATH_PREFIX = "/api/v1/auth/"
         private const val BEARER_PREFIX = "Bearer "
+        private val ALLOWED_ORIGINS = listOf(
+            "http://localhost:3000",
+            "https://motionit.vercel.app",
+            "http://52.78.181.248.nip.io"
+        )
     }
 
     @Throws(ServletException::class, IOException::class)
@@ -38,7 +43,7 @@ class CustomAuthenticationFilter(
     ) {
         logger.debug("CustomAuthenticationFilter called")
 
-        addCorsHeaders(response)
+        addCorsHeaders(request, response)
 
         try {
             authenticate(request, response, filterChain)
@@ -110,9 +115,19 @@ class CustomAuthenticationFilter(
         filterChain.doFilter(request, response)
     }
 
-    private fun addCorsHeaders(response: HttpServletResponse) {
+    private fun addCorsHeaders(
+        request: HttpServletRequest,
+        response: HttpServletResponse
+    ) {
+        val requestOrigin = request.getHeader("Origin")
+        val allowedOrigin = if (requestOrigin != null && ALLOWED_ORIGINS.contains(requestOrigin)) {
+            requestOrigin
+        } else {
+            ALLOWED_ORIGINS.first()
+        }
+
         response.apply {
-            setHeader("Access-Control-Allow-Origin", "http://localhost:3000")
+            setHeader("Access-Control-Allow-Origin", allowedOrigin)
             setHeader("Access-Control-Allow-Credentials", "true")
             setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS")
             setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization")
@@ -143,4 +158,3 @@ class CustomAuthenticationFilter(
         response.writer.write(json)
     }
 }
-

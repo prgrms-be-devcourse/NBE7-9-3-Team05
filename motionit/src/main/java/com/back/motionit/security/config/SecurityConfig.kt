@@ -100,7 +100,12 @@ class SecurityConfig {
     @Bean
     fun corsConfigurationSource(): UrlBasedCorsConfigurationSource {
         val configuration = CorsConfiguration().apply {
-            allowedOriginPatterns = listOf("http://localhost:3000")
+            allowedOriginPatterns = listOf(
+                "http://localhost:3000",
+                "https://motionit.vercel.app",
+                "http://52.78.181.248.nip.io",
+                "https://52.78.181.248.nip.io"
+            )
             allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
             allowedHeaders = listOf("*")
             allowCredentials = true
