@@ -53,6 +53,7 @@ class SecurityConfig {
                     "/api/v1/storage/**",
                     "/api/v1/auth/**",
                     "/ws/**",
+                    "/api/ws/**",
                     "/actuator/**"
                 ).permitAll()
                     .anyRequest().authenticated()
