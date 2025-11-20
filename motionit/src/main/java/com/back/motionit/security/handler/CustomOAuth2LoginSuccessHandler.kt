@@ -10,6 +10,7 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.stereotype.Component
 import java.io.IOException
 import java.nio.charset.StandardCharsets
+import java.net.URLEncoder
 import java.util.*
 
 @Component
@@ -43,6 +44,14 @@ class CustomOAuth2LoginSuccessHandler(
             redirectUrl = decodedState.split("#")[1]
         }
 
-        requestContext.sendRedirect(redirectUrl)
+        val redirectWithToken = appendTokenQuery(redirectUrl, tokens.accessToken)
+
+        requestContext.sendRedirect(redirectWithToken)
+    }
+
+    private fun appendTokenQuery(baseUrl: String, token: String): String {
+        val encodedToken = URLEncoder.encode(token, StandardCharsets.UTF_8)
+        val separator = if (baseUrl.contains("?")) "&" else "?"
+        return "$baseUrl${separator}token=$encodedToken"
     }
 }
